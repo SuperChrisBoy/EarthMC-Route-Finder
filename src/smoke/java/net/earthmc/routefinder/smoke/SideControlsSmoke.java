@@ -28,7 +28,19 @@ public final class SideControlsSmoke {
         var categories=type.getDeclaredField("categories");categories.setAccessible(true);
         String label=net.minecraft.network.chat.Component.translatable("earthmcroutefinder.controls.settings").getString();
         if(!((List<?>)categories.get(screen)).contains(label))throw new IllegalStateException("Route settings category missing");
-        if(screen.children().stream().noneMatch(child->child instanceof Button b&&b.getMessage().getString().equals(label)))throw new IllegalStateException("Route settings action missing");
+        if(screen.children().stream().noneMatch(child->child instanceof Button b&&b.getMessage().getString().equals("Accessibility saves")))throw new IllegalStateException("Accessibility settings action missing");
+        var active=type.getDeclaredField("activeCategory");active.setAccessible(true);active.set(screen,label);
+        var layout=type.getDeclaredMethod("relayout");layout.setAccessible(true);layout.invoke(screen);
+        var rowsField=type.getDeclaredField("rows");rowsField.setAccessible(true);
+        long toggles=0;
+        for(Object row:(List<?>)rowsField.get(screen)){
+            var category=row.getClass().getDeclaredField("category");category.setAccessible(true);
+            var control=row.getClass().getDeclaredField("control");control.setAccessible(true);
+            if(label.equals(category.get(row))&&control.get(row) instanceof net.minecraft.client.gui.components.CycleButton<?>)toggles++;
+        }
+        if(toggles<8)throw new IllegalStateException("Teleport settings are not inside the base category");
+        var field=screen.children().stream().filter(child->child instanceof net.minecraft.client.gui.components.EditBox b&&b.visible&&b.getX()>screen.width/2).findFirst();
+        if(field.isEmpty())throw new IllegalStateException("Primary town field misplaced");
         net.earthmc.routefinder.RouteFinderMod.LOGGER.info("ROUTE_SIDE_CONTROLS_SMOKE_OK");
     }
 }

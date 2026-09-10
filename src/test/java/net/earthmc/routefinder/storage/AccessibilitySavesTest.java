@@ -20,6 +20,18 @@ class AccessibilitySavesTest {
         Path empty=saves.save("Unknown",Map.of());
         assertTrue(saves.load(empty).reports().isEmpty());
     }
+    @Test void overwriteRequiresExplicitRequestAndFailedValidationPreservesOriginal() throws Exception {
+        var saves=new AccessibilitySaves(game.resolve("saves"));
+        Path file=saves.save("Trip",Map.of("TOWN_SPAWN:town","OBSTRUCTED"));
+        String original=Files.readString(file);
+        assertThrows(FileAlreadyExistsException.class,()->saves.save("Trip",Map.of()));
+        assertEquals(original,Files.readString(file));
+        assertThrows(java.io.IOException.class,()->saves.save("Trip",Map.of("invalid","ACCESSIBLE"),true));
+        assertEquals(original,Files.readString(file));
+        assertEquals(file,saves.save("Trip",Map.of("NATION_SPAWN:nation","ACCESSIBLE"),true));
+        assertEquals(Map.of("NATION_SPAWN:nation","ACCESSIBLE"),saves.load(file).reports());
+        assertEquals(1,saves.list().size());
+    }
     @Test void rejectsUnsafeNamesAndInvalidFilesWithoutChangingOtherSaves() throws Exception {
         var saves=new AccessibilitySaves(game.resolve("saves"));
         for(String name:List.of("../escape","..","a/b","a\\b","bad:name",""))assertThrows(java.io.IOException.class,()->saves.save(name,Map.of()));

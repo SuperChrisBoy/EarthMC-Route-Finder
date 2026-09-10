@@ -15,6 +15,10 @@ public final class AccessibilitySaves {
     public AccessibilitySaves(Path folder){this.folder=folder.toAbsolutePath().normalize();}
     public Path folder() throws IOException {Files.createDirectories(folder);return folder;}
     public Path save(String name,Map<String,String> reports) throws IOException {
+        return save(name,reports,false);
+    }
+    /** Replacement is only requested after the player confirms the warning. */
+    public Path save(String name,Map<String,String> reports,boolean overwrite) throws IOException {
         name=name.trim();
         if(name.isEmpty()||name.length()>64||name.equals(".")||name.equals("..")||name.matches(".*[\\\\/:*?\"<>|\\p{Cntrl}].*")||name.endsWith("."))throw new IOException("Use a name of 1–64 characters without file-path symbols.");
         Map<String,String> checked=validate(reports);
@@ -23,9 +27,12 @@ public final class AccessibilitySaves {
         try{
             Files.writeString(temp,GSON.toJson(new Save(1,name,Instant.now().toString(),checked)));
             // No replacement: an existing named snapshot must never be silently overwritten.
-            Files.move(temp,target);
+            if(overwrite){
+                try {Files.move(temp,target,StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING);}
+                catch(AtomicMoveNotSupportedException e){Files.move(temp,target,StandardCopyOption.REPLACE_EXISTING);}
+            }else Files.move(temp,target);
             return target;
-        }catch(FileAlreadyExistsException e){throw new IOException("That save name already exists. Choose another name.",e);}
+        }catch(FileAlreadyExistsException e){throw e;}
         finally{Files.deleteIfExists(temp);}
     }
     public Save load(Path file) throws IOException {
