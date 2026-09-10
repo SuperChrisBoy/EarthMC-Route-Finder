@@ -13,7 +13,7 @@ public final class IceRoadOverlay {
     private static final double FAR_ZOOM_SCALE=.04;
     private static IceRoadNetwork.Station selected;private static List<Hit>hits=List.of(),routeHits=List.of();private record Hit(IceRoadNetwork.Station station,double x,double y){}
     private IceRoadOverlay(){}
-    public static void render(GuiGraphics g,double camX,double camZ,double scale,int sw,int sh,RouteFinderConfig cfg){if(!cfg.iceRoadOverlayEnabled||scale<=0)return;IceRoadNetwork n=IceRoadNetwork.get();double left=camX-sw/2.0/scale,right=camX+sw/2.0/scale,top=camZ-sh/2.0/scale,bottom=camZ+sh/2.0/scale;boolean far=scale<FAR_ZOOM_SCALE;Set<Long>tinyPixels=far?new HashSet<>():Set.of();for(var s:n.segments()){if(Math.max(s.x1(),s.x2())<left||Math.min(s.x1(),s.x2())>right||Math.max(s.z1(),s.z2())<top||Math.min(s.z1(),s.z2())>bottom)continue;int x1=sx(s.x1(),camX,scale,sw),y1=sy(s.z1(),camZ,scale,sh),x2=sx(s.x2(),camX,scale,sw),y2=sy(s.z2(),camZ,scale,sh);long dx=(long)x2-x1,dy=(long)y2-y1;if(far&&dx*dx+dy*dy<4){int x=(x1+x2)>>1,y=(y1+y2)>>1;if(tinyPixels.add(pixelKey(x,y)))g.fill(x,y,x+1,y+1,s.color());continue;}line(g,x1,y1,x2,y2,s.color(),cfg.iceRoadLineWidth);}List<Hit>visible=new ArrayList<>();Set<Long>markerCells=far?new HashSet<>():Set.of();int cell=Math.max(4,cfg.iceRoadMarkerSize);if(far&&selected!=null&&selected.x()>=left&&selected.x()<=right&&selected.z()>=top&&selected.z()<=bottom&&visibleByFilter(cfg,selected)){int x=sx(selected.x(),camX,scale,sw),y=sy(selected.z(),camZ,scale,sh);markerCells.add(cellKey(x,y,cell));symbol(g,x,y,selected.type(),access(cfg,selected),true,cfg.iceRoadMarkerSize);visible.add(new Hit(selected,x,y));}for(var s:n.stations()){if(s==null||s==selected&&far||s.x()<left||s.x()>right||s.z()<top||s.z()>bottom||!visibleByFilter(cfg,s))continue;int x=sx(s.x(),camX,scale,sw),y=sy(s.z(),camZ,scale,sh);if(far&&!markerCells.add(cellKey(x,y,cell)))continue;symbol(g,x,y,s.type(),access(cfg,s),s==selected,cfg.iceRoadMarkerSize);visible.add(new Hit(s,x,y));}hits=List.copyOf(visible);if(selected!=null)card(g,sw,sh,cfg,selected);}
+    public static void render(GuiGraphics g,double camX,double camZ,double scale,int sw,int sh,RouteFinderConfig cfg){routeHits=List.of();hits=List.of();if(!cfg.iceRoadOverlayEnabled||scale<=0)return;IceRoadNetwork n=IceRoadNetwork.get();double left=camX-sw/2.0/scale,right=camX+sw/2.0/scale,top=camZ-sh/2.0/scale,bottom=camZ+sh/2.0/scale;boolean far=scale<FAR_ZOOM_SCALE;Set<Long>tinyPixels=far?new HashSet<>():Set.of();for(var s:n.segments()){if(Math.max(s.x1(),s.x2())<left||Math.min(s.x1(),s.x2())>right||Math.max(s.z1(),s.z2())<top||Math.min(s.z1(),s.z2())>bottom)continue;int x1=sx(s.x1(),camX,scale,sw),y1=sy(s.z1(),camZ,scale,sh),x2=sx(s.x2(),camX,scale,sw),y2=sy(s.z2(),camZ,scale,sh);long dx=(long)x2-x1,dy=(long)y2-y1;if(far&&dx*dx+dy*dy<4){int x=(x1+x2)>>1,y=(y1+y2)>>1;if(tinyPixels.add(pixelKey(x,y)))g.fill(x,y,x+1,y+1,s.color());continue;}line(g,x1,y1,x2,y2,s.color(),cfg.iceRoadLineWidth);}List<Hit>visible=new ArrayList<>();Set<Long>markerCells=far?new HashSet<>():Set.of();int cell=Math.max(4,cfg.iceRoadMarkerSize);if(far&&selected!=null&&selected.x()>=left&&selected.x()<=right&&selected.z()>=top&&selected.z()<=bottom&&visibleByFilter(cfg,selected)){int x=sx(selected.x(),camX,scale,sw),y=sy(selected.z(),camZ,scale,sh);markerCells.add(cellKey(x,y,cell));symbol(g,x,y,selected.type(),access(cfg,selected),true,cfg.iceRoadMarkerSize);visible.add(new Hit(selected,x,y));}for(var s:n.stations()){if(s==null||s==selected&&far||s.x()<left||s.x()>right||s.z()<top||s.z()>bottom||!visibleByFilter(cfg,s))continue;int x=sx(s.x(),camX,scale,sw),y=sy(s.z(),camZ,scale,sh);if(far&&!markerCells.add(cellKey(x,y,cell)))continue;symbol(g,x,y,s.type(),access(cfg,s),s==selected,cfg.iceRoadMarkerSize);visible.add(new Hit(s,x,y));}hits=List.copyOf(visible);}
     private static long pixelKey(int x,int y){return ((long)x<<32)^(y&0xffffffffL);}
     private static long cellKey(int x,int y,int size){return pixelKey(Math.floorDiv(x,size),Math.floorDiv(y,size));}
     private static int sx(double x,double c,double s,int w){return (int)Math.round(w/2.0+(x-c)*s);}private static int sy(double z,double c,double s,int h){return (int)Math.round(h/2.0+(z-c)*s);}
@@ -69,7 +69,7 @@ public final class IceRoadOverlay {
         IceRoadNetwork network=IceRoadNetwork.get();List<Hit> next=new ArrayList<>(trip.stationIds().size());
         for(int id:trip.stationIds()){if(id<0||id>=network.stations().size())continue;IceRoadNetwork.Station station=network.stations().get(id);if(station==null)continue;int x=sx(station.x(),camX,scale,sw),y=sy(station.z(),camZ,scale,sh);symbol(g,x,y,station.type(),access(cfg,station),station==selected,cfg.iceRoadMarkerSize);next.add(new Hit(station,x,y));}
         int entryX=sx(trip.entryX(),camX,scale,sw),entryY=sy(trip.entryZ(),camZ,scale,sh),exitX=sx(trip.exitX(),camX,scale,sw),exitY=sy(trip.exitZ(),camZ,scale,sh);endpoint(g,entryX,entryY,0xFF25C6E8,cfg.iceRoadMarkerSize);endpoint(g,exitX,exitY,0xFF25C6E8,cfg.iceRoadMarkerSize);
-        routeHits=List.copyOf(next);if(selected!=null&&next.stream().anyMatch(hit->hit.station==selected))card(g,sw,sh,cfg,selected);return true;
+        routeHits=List.copyOf(next);return true;
     }
     private static void dashed(GuiGraphics g,int x1,int y1,int x2,int y2,int color){double dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy);if(len<1)return;int pieces=Math.min(160,Math.max(1,(int)Math.ceil(len/14)));for(int i=0;i<pieces;i+=2){double a=i/(double)pieces,b=Math.min(1,(i+1)/(double)pieces);line(g,(int)Math.round(x1+dx*a),(int)Math.round(y1+dy*a),(int)Math.round(x1+dx*b),(int)Math.round(y1+dy*b),color,3);}}
     private static void endpoint(GuiGraphics g,int x,int y,int color,int size){int outer=Math.max(4,size/2),inner=Math.max(2,outer-2);g.fill(x-outer,y-outer,x+outer+1,y+outer+1,0xFFFFFFFF);g.fill(x-inner,y-inner,x+inner+1,y+inner+1,color);}
@@ -93,9 +93,75 @@ public final class IceRoadOverlay {
     private static void hollowSquare(GuiGraphics g,int x,int y,int c){rect(g,x,y,c,1,1,11,4);rect(g,x,y,c,1,8,11,11);rect(g,x,y,c,1,4,4,8);rect(g,x,y,c,8,4,11,8);}
     private static void ring(GuiGraphics g,int x,int y,int c,int start,int count){double step=Math.PI*2/12;for(int i=start;i<start+count;i++){double a=i*step,b=(i+1)*step;line(g,(int)Math.round(x+5*Math.cos(a)),(int)Math.round(y+5*Math.sin(a)),(int)Math.round(x+5*Math.cos(b)),(int)Math.round(y+5*Math.sin(b)),c,3);}}
     private static void halfRing(GuiGraphics g,int x,int y,int c,int orientation){int start=switch(orientation){case 1->6;case 2->3;case 3->0;default->9;};ring(g,x,y,c,start,6);if(orientation==1||orientation==3)g.fill(x-6,y-1,x+7,y+2,c);else g.fill(x-1,y-6,x+2,y+7,c);}
-    private static void card(GuiGraphics g,int sw,int sh,RouteFinderConfig cfg,IceRoadNetwork.Station s){int w=300,h=92,x=Math.max(8,sw-w-12),y=Math.max(8,sh-h-12);g.fill(x,y,x+w,y+h,0xF20A1419);g.drawString(Minecraft.getInstance().font,s.name(),x+8,y+7,0xFFFFFFFF,false);g.drawString(Minecraft.getInstance().font,Component.translatable("earthmcroutefinder.ice_station.coords",Math.round(s.x()),Math.round(s.z()),typeName(s.type())),x+8,y+21,0xFFB9C5CB,false);String detail=s.notes().isBlank()?(s.lines().isEmpty()?Component.translatable("earthmcroutefinder.ice_station.no_line_information").getString():String.join(" · ",s.lines().subList(0,Math.min(2,s.lines().size())))):s.notes();if(detail.length()>52)detail=detail.substring(0,49)+"...";g.drawString(Minecraft.getInstance().font,detail,x+8,y+35,0xFFDDE7ED,false);String[] keys={"unknown","accessible","blocked"};String[] values={"UNKNOWN","ACCESSIBLE","OBSTRUCTED"};for(int i=0;i<3;i++){int bx=x+8+i*95;boolean on=values[i].equals(access(cfg,s));g.fill(bx,y+57,bx+91,y+78,on?0xFF315E70:0xFF1B2931);g.drawCenteredString(Minecraft.getInstance().font,Component.translatable("earthmcroutefinder.ice_station.status."+keys[i]),bx+45,y+63,on?0xFFFFFFFF:0xFFB9C5CB);}}
-    public static boolean click(double mx,double my,int sw,int sh,RouteFinderConfig cfg){if(!cfg.iceRoadOverlayEnabled)return false;boolean insideCard=false;if(selected!=null){int x=Math.max(8,sw-312),y=Math.max(8,sh-104);insideCard=mx>=x&&mx<x+300&&my>=y&&my<y+92;if(mx>=x+8&&mx<x+293&&my>=y+57&&my<y+78){int i=(int)((mx-(x+8))/95);if(i>=0&&i<3){String[]v={"UNKNOWN","ACCESSIBLE","OBSTRUCTED"};String key=IceRoadNetwork.reportKey(selected.id());if(i==0)cfg.iceRoadStationReports.remove(key);else cfg.iceRoadStationReports.put(key,v[i]);cfg.save();return true;}}}Hit best=null;double radius=Math.max(9,cfg.iceRoadMarkerSize/2.0+3),bd=radius*radius;for(Hit h:hits){double d=(h.x-mx)*(h.x-mx)+(h.y-my)*(h.y-my);if(d<bd){bd=d;best=h;}}if(best!=null){selected=best.station;return true;}if(selected!=null&&!insideCard)selected=null;return insideCard;}
-    public static boolean clickSelectedRoute(double mx,double my,int sw,int sh,RouteFinderConfig cfg){if(routeHits.isEmpty())return false;if(selected!=null&&routeHits.stream().anyMatch(hit->hit.station==selected)){int x=Math.max(8,sw-312),y=Math.max(8,sh-104);if(mx>=x+8&&mx<x+293&&my>=y+57&&my<y+78){int i=(int)((mx-(x+8))/95);if(i>=0&&i<3){String[] values={"UNKNOWN","ACCESSIBLE","OBSTRUCTED"};String key=IceRoadNetwork.reportKey(selected.id());if(i==0)cfg.iceRoadStationReports.remove(key);else cfg.iceRoadStationReports.put(key,values[i]);cfg.save();return true;}}if(mx>=x&&mx<x+300&&my>=y&&my<y+92)return true;}Hit best=null;double radius=Math.max(9,cfg.iceRoadMarkerSize/2.0+3),bd=radius*radius;for(Hit hit:routeHits){double d=(hit.x-mx)*(hit.x-mx)+(hit.y-my)*(hit.y-my);if(d<bd){bd=d;best=hit;}}if(best==null)return false;selected=best.station;return true;}
+    private static boolean cardVisible(RouteFinderConfig cfg){
+        return selected!=null&&!IceRoadPlannerOverlay.active()&&(cfg.iceRoadOverlayEnabled||
+            TeleportViewerOverlay.open()&&cfg.teleportRouteLineVisible&&routeHits.stream().anyMatch(hit->hit.station==selected));
+    }
+
+    /** UI is rendered once, after base map markers and the teleport route decorations. */
+    public static void renderUi(GuiGraphics g,int sw,int sh,RouteFinderConfig cfg){
+        if(cardVisible(cfg))card(g,sw,sh,cfg,selected);
+    }
+
+    private static void card(GuiGraphics g,int sw,int sh,RouteFinderConfig cfg,IceRoadNetwork.Station station){
+        var box=StationCardLayout.of(sw,sh);
+        int x=box.x(),y=box.y();
+        var font=Minecraft.getInstance().font;
+        g.fill(x,y,x+box.width(),y+box.height(),0xFF0A1419);
+        g.drawString(font,font.plainSubstrByWidth(station.name(),box.width()-16),x+8,y+7,0xFFFFFFFF,false);
+        String coords=Component.translatable("earthmcroutefinder.ice_station.coords",Math.round(station.x()),Math.round(station.z()),typeName(station.type())).getString();
+        g.drawString(font,font.plainSubstrByWidth(coords,box.width()-16),x+8,y+21,0xFFB9C5CB,false);
+        String detail=station.notes().isBlank()?(station.lines().isEmpty()?Component.translatable("earthmcroutefinder.ice_station.no_line_information").getString():String.join(" · ",station.lines().subList(0,Math.min(2,station.lines().size())))):station.notes();
+        g.drawString(font,font.plainSubstrByWidth(detail,box.width()-16),x+8,y+35,0xFFDDE7ED,false);
+        String[] keys={"unknown","accessible","blocked"},values={"UNKNOWN","ACCESSIBLE","OBSTRUCTED"};
+        for(int i=0;i<3;i++){
+            var button=box.button(i);boolean on=values[i].equals(access(cfg,station));
+            g.fill(button.x(),button.y(),button.x()+button.width(),button.y()+button.height(),on?0xFF315E70:0xFF1B2931);
+            String label=Component.translatable("earthmcroutefinder.ice_station.status."+keys[i]).getString();
+            g.drawCenteredString(font,font.plainSubstrByWidth(label,button.width()-6),button.x()+button.width()/2,button.y()+6,on?0xFFFFFFFF:0xFFB9C5CB);
+        }
+    }
+
+    /** Consume popup clicks before any map, marker or viewer behind it can handle them. */
+    public static boolean clickCard(double mx,double my,int sw,int sh,RouteFinderConfig cfg){
+        if(!cardVisible(cfg))return false;
+        var box=StationCardLayout.of(sw,sh);
+        if(!box.contains(mx,my))return false;
+        int index=box.buttonAt(mx,my);
+        if(index>=0){
+            String key=IceRoadNetwork.reportKey(selected.id());
+            if(index==0)cfg.iceRoadStationReports.remove(key);
+            else cfg.iceRoadStationReports.put(key,index==1?"ACCESSIBLE":"OBSTRUCTED");
+            cfg.save();
+            TeleportViewerOverlay.stationReportChanged();
+        }
+        return true;
+    }
+
+    public static boolean click(double mx,double my,int sw,int sh,RouteFinderConfig cfg){
+        if(clickCard(mx,my,sw,sh,cfg))return true;
+        if(!cfg.iceRoadOverlayEnabled||IceRoadPlannerOverlay.active())return false;
+        Hit best=nearest(hits,mx,my,cfg);
+        if(best!=null){selected=best.station;return true;}
+        selected=null;return false;
+    }
+
+    public static boolean clickSelectedRoute(double mx,double my,int sw,int sh,RouteFinderConfig cfg){
+        if(clickCard(mx,my,sw,sh,cfg))return true;
+        if(IceRoadPlannerOverlay.active())return false;
+        Hit best=nearest(routeHits,mx,my,cfg);
+        if(best==null)return false;
+        selected=best.station;return true;
+    }
+
+    private static Hit nearest(List<Hit> candidates,double mx,double my,RouteFinderConfig cfg){
+        Hit best=null;double radius=Math.max(9,cfg.iceRoadMarkerSize/2.0+3),distance=radius*radius;
+        for(Hit hit:candidates){
+            double d=(hit.x-mx)*(hit.x-mx)+(hit.y-my)*(hit.y-my);
+            if(d<distance){distance=d;best=hit;}
+        }
+        return best;
+    }
     private static String access(RouteFinderConfig cfg,IceRoadNetwork.Station s){return cfg.iceRoadStationReports.getOrDefault(IceRoadNetwork.reportKey(s.id()),"UNKNOWN");}private static Component typeName(String t){String key=t.startsWith("semi")?"semi_station":t.startsWith("jct")?"junction":t.startsWith("inter")?"interchange":t.startsWith("elev")?"elevator":"station";return Component.translatable("earthmcroutefinder.ice_station.type."+key);}
     private static boolean visibleByFilter(RouteFinderConfig cfg,IceRoadNetwork.Station s){String a=access(cfg,s);return cfg.iceRoadStationFilter==0||cfg.iceRoadStationFilter==1&&"ACCESSIBLE".equals(a)||cfg.iceRoadStationFilter==2&&"OBSTRUCTED".equals(a);}
 }
