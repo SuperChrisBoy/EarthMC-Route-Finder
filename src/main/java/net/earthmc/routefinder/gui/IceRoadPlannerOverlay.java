@@ -907,7 +907,8 @@ public final class IceRoadPlannerOverlay {
   public static boolean click(double mx, double my, double worldX, double worldZ, int sw) {
     if (!active) return false;
     if (clickPlannerUi(mx, my, sw)) {
-      uiPressHandled = true;
+      // A dialog receives the release itself; do not consume the next map placement.
+      uiPressHandled = !(Minecraft.getInstance().screen instanceof CoordinatesScreen);
       return true;
     }
     draftDropdown = toolDropdown = false;

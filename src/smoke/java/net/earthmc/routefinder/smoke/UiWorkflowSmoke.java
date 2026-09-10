@@ -27,8 +27,18 @@ public final class UiWorkflowSmoke {
         Class<?> type=IceRoadPlannerOverlay.class;
         List drafts=(List)field(null,type,"drafts");
         var original=new ArrayList(drafts);
+        boolean wasActive=IceRoadPlannerOverlay.active();
         Object oldIndex=field(null,type,"draftIndex"),oldY=field(null,type,"placementY"),oldTool=field(null,type,"tool");
         try{
+            if(!wasActive)IceRoadPlannerOverlay.toggle();
+            var window=mc.getWindow();
+            var viewport=OverlayViewport.planner(window.getGuiScaledWidth(),window.getGuiScaledHeight());
+            var bar=PlannerToolbarLayout.of(viewport.width(),viewport.height());
+            double clickX=viewport.anchor()+(154-viewport.anchor())*viewport.scale(),clickY=(bar.top()-12)*viewport.scale();
+            if(!IceRoadPlannerOverlay.click(clickX,clickY,0,0,window.getGuiScaledWidth())||!(mc.screen instanceof CoordinatesScreen))
+                throw new IllegalStateException("Scaled Y button missed");
+            if(Boolean.TRUE.equals(field(null,type,"uiPressHandled")))throw new IllegalStateException("Dialog leaves stale map release");
+            press(mc.screen,"Cancel");
             Class<?> draftType=Class.forName(type.getName()+"$Draft");
             var constructor=draftType.getDeclaredConstructor(String.class);constructor.setAccessible(true);
             drafts.add(constructor.newInstance("Coordinate workflow smoke"));
@@ -56,6 +66,7 @@ public final class UiWorkflowSmoke {
             Object placed=vertices.getLast();
             if(vertices.size()!=2||!field(placed,placed.getClass(),"y").equals(-32.0))throw new IllegalStateException("Chosen placement Y not applied");
         }finally{
+            if(IceRoadPlannerOverlay.active()!=wasActive)IceRoadPlannerOverlay.toggle();
             drafts.clear();drafts.addAll(original);set(type,"draftIndex",oldIndex);set(type,"placementY",oldY);set(type,"tool",oldTool);
             call(null,type,"clearMarkerSelection",new Class[]{});
             call(null,type,"saveLibraryQuiet",new Class[]{});

@@ -42,7 +42,7 @@ public abstract class RouteSettingsMixin {
         }).bounds(ctrlX,0,120,20).build();
         inputRow(routefinder$label("save_primary"),save);
         routefinder$toggle("advanced_enabled",cfg.teleportAdvancedEnabled,v->{cfg.teleportAdvancedEnabled=v;if(!v)cfg.teleportDefaultAdvanced=false;});
-        var command=cycle(cfg.teleportCommandAction,new int[]{0,1,2},v->Component.translatable("earthmcroutefinder.teleport.command_mode."+switch(v){case 1->"chat";case 2->"execute";default->"clipboard";}).withStyle(v==2?net.minecraft.ChatFormatting.RED:net.minecraft.ChatFormatting.WHITE),v->{cfg.teleportCommandAction=v;cfg.save();});
+        var command=cycle(cfg.teleportCommandAction,new int[]{0,1,2},v->Component.literal(switch(v){case 1->"Prepare chat";case 2->"Execute now";default->"Clipboard";}).withStyle(v==2?net.minecraft.ChatFormatting.RED:net.minecraft.ChatFormatting.WHITE),v->{cfg.teleportCommandAction=v;cfg.save();});
         command.setTooltip(Tooltip.create(Component.translatable("earthmcroutefinder.settings.execute_command_warning")));
         inputRow(routefinder$label("settings.command_action"),command);
         routefinder$toggle("town_spawns",cfg.teleportShowTownSpawns,v->cfg.teleportShowTownSpawns=v);

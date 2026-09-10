@@ -77,11 +77,17 @@ public final class TeleportViewerOverlay {
         if(routeLoading&&!resultsCleared)g.text(Minecraft.getInstance().font,Component.translatable("earthmcroutefinder.teleport.loading"),x+10,y+h-18,0xFFFFFF77,false);
         else if(currentRoutes.isEmpty()&&!resultsCleared)g.text(Minecraft.getInstance().font,Component.translatable(advanced&&cfg.teleportPrimaryHomeTown.isBlank()?"earthmcroutefinder.teleport.primary_required":"earthmcroutefinder.teleport.none"),x+10,y+h-18,0xFFFFAA66,false);
         else if(!currentRoutes.isEmpty())drawFooter(g,x,y+h,locked);
+        else {
+            int messageY=y+h-44;
+            for(var line:Minecraft.getInstance().font.split(Component.translatable("earthmcroutefinder.teleport.results_cleared"),W-20)){
+                if(messageY>y+h-12)break;
+                g.text(Minecraft.getInstance().font,line,x+10,messageY,0xFFAFBAC2,false);messageY+=11;
+            }
+        }
         if(System.currentTimeMillis()<feedbackUntil&&!feedback.isBlank()){
             g.fill(x+8,y+HEADER,x+W-8,y+HEADER+12,0xFF182126);
             g.text(Minecraft.getInstance().font,Minecraft.getInstance().font.plainSubstrByWidth(feedback,W-24),x+12,y+HEADER+2,0xFFFFCC66,false);
         }
-        else g.text(Minecraft.getInstance().font,Component.translatable("earthmcroutefinder.teleport.results_cleared"),x+10,y+h-18,0xFFAFBAC2,false);
     }
 
     private static void drawRouteRow(GuiGraphicsExtractor g,TeleportRoute route,int index,int x,int y,boolean locked){
