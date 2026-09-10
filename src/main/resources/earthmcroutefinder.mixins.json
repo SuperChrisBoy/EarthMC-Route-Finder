@@ -1,0 +1,13 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "net.earthmc.routefinder.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "client": [
+    "RouteMapMixin",
+    "RouteMinimapMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

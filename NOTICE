@@ -1,0 +1,6 @@
+EarthMC Route Finder
+
+Route, teleport, editor and API code adapted from EarthMC Map Addon (JR1258), licensed under Apache-2.0.
+Source: https://github.com/JR1258/EarthMC-Map-Addon
+The extracted code is modified for an independently configured companion mod.
+Ice highway data: XiLeF2211 ice-highways-map. Its license is included beside the bundled dataset.

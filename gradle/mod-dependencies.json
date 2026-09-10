@@ -1,0 +1,62 @@
+{
+  "26.2": {
+    "base": {
+      "id": "x7r6RPeX",
+      "url": "https://cdn.modrinth.com/data/eKzMd1Vy/versions/x7r6RPeX/earthmc-map-addon-26.2-1.4.5.jar",
+      "filename": "earthmc-map-addon-26.2-1.4.5.jar",
+      "sha512": "ec398cf8fa41eae4ca23523a25cd72b2f85f5a8da527b1de6449092cd64556ac84542120d4c4bb42253989898af580ea0d20b2558404a4d7307d911209ead9d7"
+    },
+    "minimap": {
+      "id": "tBIPWIKW",
+      "url": "https://cdn.modrinth.com/data/1bokaNcj/versions/tBIPWIKW/xaerominimap-fabric-26.2-26.5.0.jar",
+      "filename": "xaerominimap-fabric-26.2-26.5.0.jar",
+      "sha512": "b00df8bb410fae12b08788044f2f03cec34bfc4506da419d11d364e2f229b814dbb272d297fbe4b0cdfac18beeeed4dc8f1bdfc96fb113867857527e31965049"
+    },
+    "worldmap": {
+      "id": "DxU1zijU",
+      "url": "https://cdn.modrinth.com/data/NcUtCpym/versions/DxU1zijU/xaeroworldmap-fabric-26.2-1.46.0.jar",
+      "filename": "xaeroworldmap-fabric-26.2-1.46.0.jar",
+      "sha512": "37284868eed7bb105362ba1df3da38e860a0f889e50dcae43ddaf167c33817b8ece289770f89b138e327b145d15ae36a4df850202770236a4eefd7b413158438"
+    }
+  },
+  "26.1.2": {
+    "base": {
+      "id": "ThGLJAff",
+      "url": "https://cdn.modrinth.com/data/eKzMd1Vy/versions/ThGLJAff/earthmc-map-addon-26.1.2-1.4.5.jar",
+      "filename": "earthmc-map-addon-26.1.2-1.4.5.jar",
+      "sha512": "dbbf577367a3867a9dc76403a53050b7cd744b7384c0852a65f3bafc334055c11ea74659dfa03a1f734842086d6ace5997e5ed267e12f48044928cc56f2fa694"
+    },
+    "minimap": {
+      "id": "kWf58HtH",
+      "url": "https://cdn.modrinth.com/data/1bokaNcj/versions/kWf58HtH/xaerominimap-fabric-26.1.2-26.5.0.jar",
+      "filename": "xaerominimap-fabric-26.1.2-26.5.0.jar",
+      "sha512": "5faeb5fad6059d7d7a4d2c8159ecf8e641700ea09652e6a01fcc9e3498654ba5aa778648d57cdd96c04dabe1aa80f2699490facaf67f8f8ada0afe86c74a00e2"
+    },
+    "worldmap": {
+      "id": "IYPINJuw",
+      "url": "https://cdn.modrinth.com/data/NcUtCpym/versions/IYPINJuw/xaeroworldmap-fabric-26.1.2-1.46.0.jar",
+      "filename": "xaeroworldmap-fabric-26.1.2-1.46.0.jar",
+      "sha512": "335df414f19c2675ad9a245fc12069ea65cab38c09610e53fed179c3f8f314a14f917c9b66bd17ff502d47697751ba20e7bb705587b47850173bffa9a8776b18"
+    }
+  },
+  "1.21.11": {
+    "base": {
+      "id": "PmhcQujE",
+      "url": "https://cdn.modrinth.com/data/eKzMd1Vy/versions/PmhcQujE/earthmc-map-addon-1.21.11-1.4.5.jar",
+      "filename": "earthmc-map-addon-1.21.11-1.4.5.jar",
+      "sha512": "826ed4cd53735d5b94f748f116db0e192a50d1970d63ae0f8cc81d8add837f73fdf54e0a58e44a59f9ac2c4f61b4c1ceb07f498c6ed6ede294f1f7a5a69a2d15"
+    },
+    "minimap": {
+      "id": "VNYP3B0c",
+      "url": "https://cdn.modrinth.com/data/1bokaNcj/versions/VNYP3B0c/xaerominimap-fabric-1.21.11-26.5.0.jar",
+      "filename": "xaerominimap-fabric-1.21.11-26.5.0.jar",
+      "sha512": "8d9d2eccd96f5c446ff0e88d7680cc8fee2d7a4a9192a6fdba71cefd503c5c7c419221320628a55576d90431fc86caff215566ff3dd52500a8cc5702d1559394"
+    },
+    "worldmap": {
+      "id": "Jfe3ZJIB",
+      "url": "https://cdn.modrinth.com/data/NcUtCpym/versions/Jfe3ZJIB/xaeroworldmap-fabric-1.21.11-1.46.0.jar",
+      "filename": "xaeroworldmap-fabric-1.21.11-1.46.0.jar",
+      "sha512": "17aa854d8b7b21e4331a8a510ed28ab20617467e7b9b30214380a4c21bcc81145bf42bc57f26ae93fbe5157a0b9d272235c123269e7532c8c7d54239c57c2174"
+    }
+  }
+}

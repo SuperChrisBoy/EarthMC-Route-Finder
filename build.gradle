@@ -1,0 +1,45 @@
+plugins { id 'net.fabricmc.fabric-loom' version '1.17.9' }
+version = project.mod_version
+group = project.maven_group
+base { archivesName = project.archives_base_name + '-' + project.minecraft_version }
+repositories {
+    mavenCentral()
+    maven { url 'https://api.modrinth.com/maven' }
+    maven { url 'https://maven.fabricmc.net/' }
+    maven { url 'https://maven.terraformersmc.com/releases/' }
+}
+dependencies {
+    minecraft 'com.mojang:minecraft:' + project.minecraft_version
+    implementation 'net.fabricmc:fabric-loader:' + project.loader_version
+    implementation 'net.fabricmc.fabric-api:fabric-api:' + project.fabric_version
+    compileOnly 'com.terraformersmc:modmenu:' + project.modmenu_version
+    def pinned = new groovy.json.JsonSlurper().parse(file('gradle/mod-dependencies.json'))[project.minecraft_version]
+    compileOnly 'maven.modrinth:xaeros-minimap:' + pinned.minimap.id
+    compileOnly 'maven.modrinth:xaeros-world-map:' + pinned.worldmap.id
+    runtimeOnly 'maven.modrinth:xaeros-minimap:' + pinned.minimap.id
+    runtimeOnly 'maven.modrinth:xaeros-world-map:' + pinned.worldmap.id
+    runtimeOnly 'maven.modrinth:emcmap-addon:' + pinned.base.id
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.11.4'
+}
+processResources {
+    inputs.property 'version', project.version
+    filesMatching('fabric.mod.json') { expand version: project.version }
+}
+java { toolchain { languageVersion = JavaLanguageVersion.of(25) }; withSourcesJar() }
+tasks.withType(JavaCompile).configureEach { options.release = 25 }
+tasks.withType(Test).configureEach { useJUnitPlatform() }
+jar { from('LICENSE'); from('NOTICE') }
+
+if (project.hasProperty('smokeTest')) {
+    sourceSets {
+        smoke {
+            compileClasspath += sourceSets.main.compileClasspath + sourceSets.main.output
+            runtimeClasspath += sourceSets.main.runtimeClasspath + sourceSets.main.output
+        }
+    }
+    loom {
+        mods { routefinder_smoke { sourceSet sourceSets.smoke } }
+        runs { client { source sourceSets.smoke; runDir 'run-smoke'; vmArg '-Djava.awt.headless=true' } }
+    }
+}

@@ -1,0 +1,50 @@
+# EarthMC Route Finder
+
+A client-side Fabric companion for **EarthMC Map Addon**, with the ice road and Teleport Viewer features extracted from the existing development project. Install both mods, plus Fabric API, Xaero's Minimap and Xaero's World Map, for your Minecraft version.
+
+| Branch | Minecraft | Java |
+| --- | --- | --- |
+| `26.2` | 26.2 | 25 |
+| `26.1.x` | 26.1.x (built against 26.1.2) | 25 |
+| `1.21.11` | 1.21.11 | 21 |
+
+Use one Route Finder JAR matching your game version. This project does not replace the original mod, bundle it, edit its config, or deploy automatically into your Minecraft installation.
+
+## Features
+
+- Ice highways and station markers on the world map and minimap, including station accessibility reports and live dataset updates.
+- The existing ice road planner: network drafts, branches, station editing, snapping, undo/redo, autosave, JSON/GeoJSON export and map image export.
+- Teleport Viewer with town/nation destinations, access checks, Standard and optional Advanced mode, walking distances and ice road routes.
+- Selected route display on the world map and minimap, and route waypoints.
+- Independent settings, station reports and spawn reports. Teleport commands default to copying to the clipboard; settings also offer preparing chat or executing eligible commands.
+
+## Use
+
+Open Xaero's World Map on EarthMC. The top toolbar provides **Ice roads**, **Road planner**, and **Route settings**. Double-click a map location to open Teleport Viewer.
+
+- `/routefinder` opens settings.
+- `/routefinder roads` toggles ice road overlays.
+- `/routefinder planner` toggles the planner; open the world map to edit.
+- `/routefinder target <x> <z>` selects a route destination; open the world map to view results.
+
+Mod Menu also opens Route Finder settings. Ice road settings include width, marker size, station filtering and double-click targeting.
+
+Settings: `config/earthmcroutefinder.json`. Planner files: `earthmcroutefinder/ice-highway-planner/` inside the game directory. Existing development-mod drafts can be imported with the planner's clipboard JSON import; the original files are not migrated or modified automatically.
+
+## Build and validation
+
+Check out the desired branch, then run `./gradlew build` (Windows: `.\gradlew.bat build`). The installable JAR is in `build/libs/`; do not install the `-sources.jar`.
+
+Dependencies resolve from pinned Modrinth version IDs in `gradle/mod-dependencies.json`. No manually supplied `libs/` JAR is needed. Optional `node scripts/setup-dependencies.cjs` downloads SHA-512-verified original mod and Xaero JARs to `validation/<version>/mods/`.
+
+`./gradlew runClient -PsmokeTest` starts a separate client under `run-smoke/`, checks that the companion's mixins and the published base mod's integration methods exist, prints `ROUTE_FINDER_SMOKE_OK`, and closes. The smoke-only mod is not included in release JARs. This startup check does not connect to EarthMC or exercise real teleport commands.
+
+The extracted unit tests cover route access/caching, ice road routing, and planner editing/export. Multiplayer interaction and visual alignment should also be checked in-game before publishing a release.
+
+## Integration and maintenance
+
+The companion has its own `earthmcroutefinder` mod ID, Java package, assets and settings. It reads the original mod's town snapshots and coordinate transforms and attaches rendering/input to the original map integration. The published EarthMC Map Addon 1.4.5 is the integration baseline. Future changes to its internal methods or Xaero's screen methods may require updating the companion.
+
+Keep common route logic synchronized across branches; version-specific Fabric, Minecraft rendering and mappings changes belong on their respective branches.
+
+Derived source is Apache-2.0; see `LICENSE` and `NOTICE`. The bundled XiLeF2211 highway dataset retains its own included license.
