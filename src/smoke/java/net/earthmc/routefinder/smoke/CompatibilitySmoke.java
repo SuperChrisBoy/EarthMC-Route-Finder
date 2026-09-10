@@ -7,7 +7,7 @@ public final class CompatibilitySmoke implements ClientModInitializer {
     private int ticks;
     public void onInitializeClient(){
         ClientTickEvents.END_CLIENT_TICK.register(mc->{
-            if(mc.gui.screen()==null||++ticks<30)return;
+            if(mc.screen==null||++ticks<30)return;
             if(ticks>30)return;
             try {
                 for(String name:new String[]{"xaero.map.gui.GuiMap","net.townymap.TownyMapMod"}){

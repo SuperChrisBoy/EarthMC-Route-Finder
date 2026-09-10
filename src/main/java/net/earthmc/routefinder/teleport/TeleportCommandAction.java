@@ -14,7 +14,7 @@ public final class TeleportCommandAction {
         Minecraft mc=Minecraft.getInstance();if(mc==null)return Result.UNAVAILABLE;
         int mode=resolveMode(configuredMode,advanced,verified);
         if(mode==CLIPBOARD){mc.keyboardHandler.setClipboard(command);return Result.COPIED;}
-        if(mode==CHAT){mc.gui.setScreen(new ChatScreen(command,true));return Result.CHAT_READY;}
+        if(mode==CHAT){mc.setScreen(new ChatScreen(command,true));return Result.CHAT_READY;}
         if(mc.getConnection()==null)return Result.UNAVAILABLE;
         mc.getConnection().sendCommand(command.startsWith("/")?command.substring(1):command);return Result.EXECUTED;
     }

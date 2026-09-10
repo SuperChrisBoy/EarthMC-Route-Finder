@@ -37,7 +37,7 @@ public final class RouteFinderMod implements ClientModInitializer {
             if(TeleportViewerOverlay.open())access.tick(currentTownSnapshot(),mc.getUser().getName(),Integer.toString(System.identityHashCode(connection)));
         });
         ClientCommandRegistrationCallback.EVENT.register((dispatcher,registry)->dispatcher.register(literal("routefinder")
-            .executes(c->{Minecraft mc=Minecraft.getInstance();mc.execute(()->mc.gui.setScreen(new TeleportViewerSettingsScreen(mc.gui.screen())));return 1;})
+            .executes(c->{Minecraft mc=Minecraft.getInstance();mc.execute(()->mc.setScreen(new TeleportViewerSettingsScreen(mc.screen)));return 1;})
             .then(literal("roads").executes(c->{config.iceRoadOverlayEnabled=!config.iceRoadOverlayEnabled;config.save();c.getSource().sendFeedback(Component.literal("Ice roads: "+config.iceRoadOverlayEnabled));return 1;}))
             .then(literal("planner").executes(c->{IceRoadPlannerOverlay.toggle();c.getSource().sendFeedback(Component.literal("Ice road planner: "+(IceRoadPlannerOverlay.active()?"on (open your world map)":"off")));return 1;}))
             .then(literal("target").then(argument("x",DoubleArgumentType.doubleArg()).then(argument("z",DoubleArgumentType.doubleArg()).executes(c->{

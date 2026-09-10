@@ -17,7 +17,7 @@ public final class RouteToolbar {
         for(int i=0;i<3;i++)if(x>=left+i*102&&x<left+i*102+98){
             if(i==0){var cfg=RouteFinderMod.getConfig();cfg.iceRoadOverlayEnabled=!cfg.iceRoadOverlayEnabled;cfg.save();}
             if(i==1)IceRoadPlannerOverlay.toggle();
-            if(i==2){Minecraft mc=Minecraft.getInstance();mc.gui.setScreen(new TeleportViewerSettingsScreen(mc.gui.screen()));}
+            if(i==2){Minecraft mc=Minecraft.getInstance();mc.setScreen(new TeleportViewerSettingsScreen(mc.screen));}
             return true;
         }return false;
     }
