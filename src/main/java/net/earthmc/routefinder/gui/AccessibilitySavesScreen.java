@@ -25,13 +25,7 @@ public final class AccessibilitySavesScreen extends Screen {
         name=new EditBox(font,left,42,span-120,20,Component.literal("Save name"));
         name.setMaxLength(64);name.setValue(typed);name.setHint(Component.literal("Name this accessibility save"));
         name.setResponder(v->typed=v);addRenderableWidget(name);
-        button("Save current",left+span-116,42,116,()->{
-            try{
-                saves.save(name.getValue(),RouteFinderMod.getConfig().teleportSpawnReports);
-                RouteFinderMod.getConfig().teleportAccessibilitySave=name.getValue().trim();
-                RouteFinderMod.getConfig().save();status="Saved "+name.getValue().trim();rebuildWidgets();
-            }catch(IOException e){status=e.getMessage();}
-        });
+        button("Save current",left+span-116,42,116,()->saveCurrent(false));
         int third=(span-8)/3;
         button("Open save folder",left,68,third,()->{
             try{Util.getPlatform().openUri(saves.folder().toUri());}catch(IOException e){status=e.getMessage();}
@@ -50,6 +44,20 @@ public final class AccessibilitySavesScreen extends Screen {
         button("< Previous",left,height-48,96,()->{if(page>0){page--;rebuildWidgets();}}).active=page>0;
         button("Next >",left+span-96,height-48,96,()->{page++;rebuildWidgets();}).active=(page+1)*rows<entries.size();
         button("Done",width/2-50,height-26,100,this::onClose);
+    }
+    private void saveCurrent(boolean overwrite){
+        String saveName=typed.trim();
+        try{
+            saves.save(saveName,RouteFinderMod.getConfig().teleportSpawnReports,overwrite);
+            RouteFinderMod.getConfig().teleportAccessibilitySave=saveName;
+            RouteFinderMod.getConfig().save();status="Saved "+saveName;rebuildWidgets();
+        }catch(java.nio.file.FileAlreadyExistsException exists){
+            minecraft.gui.setScreen(new net.minecraft.client.gui.screens.ConfirmScreen(confirmed->{
+                minecraft.gui.setScreen(this);
+                if(confirmed)saveCurrent(true);
+            },Component.literal("Overwrite accessibility save?"),
+              Component.literal("Replace \""+saveName+"\" with your current town/nation spawn reports? The previous contents will be lost.")));
+        }catch(IOException e){status=e.getMessage();}
     }
     private void load(AccessibilitySaves.Entry entry){
         try{

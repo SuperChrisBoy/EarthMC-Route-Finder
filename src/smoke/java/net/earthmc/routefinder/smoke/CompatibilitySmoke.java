@@ -10,10 +10,14 @@ public final class CompatibilitySmoke implements ClientModInitializer {
             if(mc.gui.screen()==null||++ticks<30)return;
             if(ticks>30){
                 if(Boolean.getBoolean("routefinder.preview")){
-                    if(ticks==160)net.minecraft.client.Screenshot.grab(mc,true);
-
-
-                    if(ticks==185)mc.stop();
+                    try {
+                        if(ticks==70||ticks==120||ticks==170||ticks==220||ticks==270)net.minecraft.client.Screenshot.grab(mc,true);
+                        if(ticks==80)mc.gui.setScreen(new ResponsivePreviewScreen(true));
+                        if(ticks==130)mc.gui.setScreen(new ResponsivePreviewScreen(false));
+                        if(ticks==180)mc.gui.setScreen(new net.earthmc.routefinder.gui.CoordinatesScreen(null,"Edit point X / Y / Z","32458.5","-32","-2999.5",false,v->{}));
+                        if(ticks==230)mc.gui.setScreen(new net.minecraft.client.gui.screens.ConfirmScreen(v->{},net.minecraft.network.chat.Component.literal("Overwrite accessibility save?"),net.minecraft.network.chat.Component.literal("Replace \"Regular travel\" with your current town/nation spawn reports? The previous contents will be lost.")));
+                        if(ticks==295)mc.stop();
+                    }catch(ReflectiveOperationException e){throw new IllegalStateException(e);}
                 }return;
             }
             try {
@@ -30,10 +34,11 @@ public final class CompatibilitySmoke implements ClientModInitializer {
                 SideControlsSmoke.verify(mc);
                 StationPopupSmoke.verify();
                 AccessibilitySavesSmoke.verify();
+                UiWorkflowSmoke.verify(mc);
                 RouteFinderMod.LOGGER.info("ROUTE_FINDER_SMOKE_OK");
                 if(Boolean.getBoolean("routefinder.preview")){
                     mc.options.guiScale().set(3);mc.resizeGui();
-                    mc.gui.setScreen(new net.earthmc.routefinder.gui.AccessibilitySavesScreen(null));
+                    SideControlsSmoke.verify(mc);
                 }else mc.stop();
             }catch(ReflectiveOperationException e){throw new IllegalStateException("Compatibility smoke failed",e);}
         });
