@@ -179,5 +179,8 @@
   "earthmcroutefinder.ice_station.type.elevator": "升降机",
   "earthmcroutefinder.ice_station.status.unknown": "未知",
   "earthmcroutefinder.ice_station.status.accessible": "可通行",
-  "earthmcroutefinder.ice_station.status.blocked": "已阻塞"
+  "earthmcroutefinder.ice_station.status.blocked": "已阻塞",
+  "earthmcroutefinder.controls.ice_roads": "冰道",
+  "earthmcroutefinder.controls.planner": "路线规划",
+  "earthmcroutefinder.controls.settings": "路线设置"
 }

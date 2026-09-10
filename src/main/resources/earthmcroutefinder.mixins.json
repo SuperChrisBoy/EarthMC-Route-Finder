@@ -5,7 +5,9 @@
   "compatibilityLevel": "JAVA_21",
   "client": [
     "RouteMapMixin",
-    "RouteMinimapMixin"
+    "RouteMinimapMixin",
+    "RouteSideControlsMixin",
+    "RouteSettingsMixin"
   ],
   "injectors": {
     "defaultRequire": 1

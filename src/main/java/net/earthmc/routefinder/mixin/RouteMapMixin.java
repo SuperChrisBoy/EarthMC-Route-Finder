@@ -29,7 +29,7 @@ public abstract class RouteMapMixin {
         if(RouteFinderMod.composingScreenshot())return;
         IceRoadPlannerOverlay.renderUi(g,w,h);
         if(!IceRoadPlannerOverlay.active())TeleportViewerOverlay.render(g,cameraX*dim,cameraZ*dim,s,w,h,RouteFinderMod.getConfig());
-        RouteToolbar.render(g,w);
+
     }
     @Inject(method={"mouseClicked","method_25402"},at=@At("HEAD"),cancellable=true)
     private void routefinder$click(MouseButtonEvent event,boolean doubled,CallbackInfoReturnable<Boolean> ci){

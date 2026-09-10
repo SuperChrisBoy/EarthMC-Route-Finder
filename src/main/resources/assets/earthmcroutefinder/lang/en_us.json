@@ -185,5 +185,8 @@
   "earthmcroutefinder.planner.snap.vertex": "Vertex",
   "earthmcroutefinder.planner.snap.segment": "Segment",
   "earthmcroutefinder.planner.snap.station": "Station",
-  "earthmcroutefinder.planner.snap.chunk_center": "Chunk center"
+  "earthmcroutefinder.planner.snap.chunk_center": "Chunk center",
+  "earthmcroutefinder.controls.ice_roads": "Ice roads",
+  "earthmcroutefinder.controls.planner": "Road planner",
+  "earthmcroutefinder.controls.settings": "Route settings"
 }
