@@ -43,3 +43,5 @@ if (project.hasProperty('smokeTest')) {
         runs { client { source sourceSets.smoke; runDir 'run-smoke'; vmArg '-Djava.awt.headless=true' } }
     }
 }
+
+if(project.hasProperty("uiPreview")) loom.runs.client { vmArg "-Droutefinder.preview=true"; programArgs "--width", "1920", "--height", "1080" }

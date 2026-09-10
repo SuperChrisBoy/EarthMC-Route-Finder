@@ -8,7 +8,12 @@ public final class CompatibilitySmoke implements ClientModInitializer {
     public void onInitializeClient(){
         ClientTickEvents.END_CLIENT_TICK.register(mc->{
             if(mc.gui.screen()==null||++ticks<30)return;
-            if(ticks>30)return;
+            if(ticks>30){
+                if(Boolean.getBoolean("routefinder.preview")){
+                    if(ticks==160)net.minecraft.client.Screenshot.grab(mc,true);
+                    if(ticks==185)mc.stop();
+                }return;
+            }
             try {
                 for(String name:new String[]{"xaero.map.gui.GuiMap","net.townymap.TownyMapMod"}){
                     Class<?> type=Class.forName(name);
@@ -21,7 +26,10 @@ public final class CompatibilitySmoke implements ClientModInitializer {
                 minimap.getDeclaredMethod("minimapAngle",xaero.hud.minimap.module.MinimapSession.class,net.minecraft.client.Minecraft.class);
                 minimap.getDeclaredMethod("isCircularMinimap",xaero.hud.minimap.module.MinimapSession.class);
                 RouteFinderMod.LOGGER.info("ROUTE_FINDER_SMOKE_OK");
-                mc.stop();
+                if(Boolean.getBoolean("routefinder.preview")){
+                    mc.options.guiScale().set(3);mc.resizeGui();
+                    mc.gui.setScreen(new PlannerUiPreview());
+                }else mc.stop();
             }catch(ReflectiveOperationException e){throw new IllegalStateException("Compatibility smoke failed",e);}
         });
     }

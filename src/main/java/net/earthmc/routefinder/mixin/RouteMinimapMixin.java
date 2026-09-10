@@ -19,6 +19,18 @@ public abstract class RouteMinimapMixin {
         if(!RouteFinderMod.composingPlannerExport())IceRoadOverlay.render(g,x,z,scale,width,height,RouteFinderMod.getConfig());
         IceRoadPlannerOverlay.render(g,x,z,scale,width,height);
     }
+    @Inject(method={"renderTownSearch","renderMapDataStatus"},at=@At("HEAD"),cancellable=true,remap=false)
+    private static void routefinder$hidePlannerConflicts(CallbackInfo ci){
+        if(IceRoadPlannerOverlay.active()&&RouteFinderMod.mapAvailable())ci.cancel();
+    }
+    @Inject(method={"onTownSearchClick","onTownSearchKeyPressed"},at=@At("HEAD"),cancellable=true,remap=false)
+    private static void routefinder$disableHiddenSearch(org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable<Object> ci){
+        if(IceRoadPlannerOverlay.active()&&RouteFinderMod.mapAvailable())ci.setReturnValue(MapAddonBridge.emptySearchResult());
+    }
+    @Inject(method={"onTownSearchCharTyped","clickMapDataStatus"},at=@At("HEAD"),cancellable=true,remap=false)
+    private static void routefinder$disableHiddenControls(org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable<Boolean> ci){
+        if(IceRoadPlannerOverlay.active()&&RouteFinderMod.mapAvailable())ci.setReturnValue(false);
+    }
     @Unique private static Method routefinder$angle,routefinder$circle;
     @Unique private static boolean routefinder$failed;
     @Inject(method="renderOnMinimap",at=@At("RETURN"),remap=false)
