@@ -21,6 +21,7 @@ public final class CompatibilitySmoke implements ClientModInitializer {
                 minimap.getDeclaredMethod("minimapAngle",xaero.hud.minimap.module.MinimapSession.class,net.minecraft.client.Minecraft.class);
                 minimap.getDeclaredMethod("isCircularMinimap",xaero.hud.minimap.module.MinimapSession.class);
                 SideControlsSmoke.verify(mc);
+                StationPopupSmoke.verify();
                 RouteFinderMod.LOGGER.info("ROUTE_FINDER_SMOKE_OK");
                 mc.stop();
             }catch(ReflectiveOperationException e){throw new IllegalStateException("Compatibility smoke failed",e);}
