@@ -397,6 +397,11 @@ public final class IceRoadPlannerOverlay {
     drawMeasurement(g, camX, camZ, scale, sw, sh);
     dragHits = List.copyOf(hits);
     segmentHits = List.copyOf(segments);
+  }
+
+  /** Draw editor controls after map markers and the base addon chrome. */
+  public static void renderUi(GuiGraphics g,int sw,int sh){
+    if(!active)return;
     if (!RouteFinderMod.composingScreenshot()) {
       editorChrome(g, sw, sh);
       if (!multiSelection.isEmpty()) multiSelectionPanel(g, sw);
@@ -409,6 +414,7 @@ public final class IceRoadPlannerOverlay {
       namePanel(g, sw);
       colorPickerPanel(g, sw);
       creationHud(g, sw, sh);
+      drawEditorMenus(g, sw, sh);
     }
   }
 
@@ -4797,19 +4803,20 @@ public final class IceRoadPlannerOverlay {
     Draft d = draft();
     int right = sw - 8;
     g.fill(PROJECT_X, 4, right, 4 + HEADER_H, 0xF20A1419);
-    g.drawString(
+    if(sw>=850)g.drawString(
         Minecraft.getInstance().font, "ICE HIGHWAY EDITOR", PROJECT_X + 8, 13, 0xFFFFFFFF, false);
-    button(g, PROJECT_X + 150, 9, 150, d.name + " v");
-    g.drawString(
+    var draftButton=PlannerToolbarLayout.draftButton(sw);
+    button(g,draftButton.x(),draftButton.y(),draftButton.width(),Minecraft.getInstance().font.plainSubstrByWidth(d.name,draftButton.width()-18)+" v");
+    if(draftButton.x()+draftButton.width()+70<right-188)g.drawString(
         Minecraft.getInstance().font,
         editorState.dirty() ? "Saving..." : "Saved",
-        PROJECT_X + 310,
+        draftButton.x()+draftButton.width()+10,
         13,
         editorState.dirty() ? 0xFFFFFF77 : 0xFF77FFAA,
         false);
     button(g, right - 188, 9, 86, "Validate");
     button(g, right - 96, 9, 88, "Export v");
-    int bottom = sh - 34;
+    int bottom = PlannerToolbarLayout.of(sw, sh).top();
     g.fill(PROJECT_X, 36, PROJECT_X + PROJECT_W, bottom - 6, 0xE80A1419);
     g.drawString(Minecraft.getInstance().font, "NETWORK", PROJECT_X + 8, 44, 0xFF8FD9FF, false);
     button(g, PROJECT_X + 8, 60, PROJECT_W - 16, d.name + " v");
@@ -4821,7 +4828,7 @@ public final class IceRoadPlannerOverlay {
     storeActiveLine(d);
     int by = 102;
     for (NetworkRow row : networkRows(d)) {
-      if (by >= bottom - 170) break;
+      if (by + 20 > bottom - 170) break;
       button(
           g,
           PROJECT_X + 12,
@@ -4858,20 +4865,14 @@ public final class IceRoadPlannerOverlay {
         PROJECT_W - 16,
         "Coordinates: " + COORDINATE_MODES[d.coordinateMode]);
     g.fill(PROJECT_X, bottom, sw - 8, sh - 6, 0xF20A1419);
-    int tx = PROJECT_X + 8;
-    for (EditorTool candidate : EditorTool.values()) {
-      boolean selected = editorState.tool() == candidate;
-      g.fill(tx, bottom + 4, tx + TOOL_W - 4, sh - 10, selected ? 0xFF315E70 : 0xFF20343D);
-      g.drawCenteredString(
-          Minecraft.getInstance().font,
-          candidate.label(),
-          tx + (TOOL_W - 4) / 2,
-          bottom + 10,
-          selected ? 0xFFFFFF77 : 0xFFFFFFFF);
-      tx += TOOL_W;
+    var layout=PlannerToolbarLayout.of(sw,sh);
+    for(int i=0;i<layout.count();i++){
+      var rect=layout.button(i);
+      boolean selected=i<EditorTool.values().length&&editorState.tool()==EditorTool.values()[i];
+      String label=i<EditorTool.values().length?EditorTool.values()[i].label():"Snap v";
+      g.fill(rect.x(),rect.y(),rect.x()+rect.width(),rect.y()+rect.height(),selected?0xFF315E70:0xFF20343D);
+      g.drawCenteredString(Minecraft.getInstance().font,label,rect.x()+rect.width()/2,rect.y()+6,selected?0xFFFFFF77:0xFFFFFFFF);
     }
-    g.drawString(Minecraft.getInstance().font, "Snap v", tx + 6, bottom + 10, 0xFF8FD9FF, false);
-    drawEditorMenus(g, sw, sh);
   }
 
   private static List<NetworkRow> networkRows(Draft draft) {
@@ -4902,7 +4903,7 @@ public final class IceRoadPlannerOverlay {
   }
 
   private static void drawEditorMenus(GuiGraphics g, int sw, int sh) {
-    int bottom = sh - 34;
+    int bottom = PlannerToolbarLayout.of(sw, sh).top();
     if (markerListDropdown) {
       int rows = Math.max(1, Math.min(12, (sh - 100) / 19)),
           pages = Math.max(1, (draft().stations.size() + rows - 1) / rows);
@@ -4966,7 +4967,8 @@ public final class IceRoadPlannerOverlay {
       button(g, x + 4, y + 64, 132, "Copy JSON");
     }
     if (snapMenu) {
-      int x = Math.min(sw - 154, PROJECT_X + 8 + EditorTool.values().length * TOOL_W), y = sh - 138;
+      var menu=PlannerToolbarLayout.of(sw,sh).snapMenu();
+      int x=menu.x(),y=menu.y();
       g.fill(x, y, x + 146, y + 100, 0xFA0A1419);
       int row = 0;
       for (SnapTarget target :
@@ -4981,7 +4983,7 @@ public final class IceRoadPlannerOverlay {
             x + 4,
             y + 4 + row++ * 19,
             138,
-            (snapSettings.enabled(target) ? "[x] " : "[ ] ") + target.name());
+            (snapSettings.enabled(target) ? "[x] " : "[ ] ") + net.minecraft.network.chat.Component.translatable("earthmcroutefinder.planner.snap."+target.name().toLowerCase(Locale.ROOT)).getString());
     }
     if (validationPanel) {
       int x = Math.max(PROJECT_X + PROJECT_W + 8, sw / 2 - 150), y = 38;
@@ -5000,7 +5002,7 @@ public final class IceRoadPlannerOverlay {
 
   private static boolean clickEditorChrome(double mx, double my, int sw) {
     Minecraft mc = Minecraft.getInstance();
-    int sh = mc == null ? 480 : mc.getWindow().getGuiScaledHeight(), bottom = sh - 34;
+    int sh = mc == null ? 480 : mc.getWindow().getGuiScaledHeight(), bottom = PlannerToolbarLayout.of(sw, sh).top();
     if (markerListDropdown) {
       int rows = Math.max(1, Math.min(12, (sh - 100) / 19)),
           pages = Math.max(1, (draft().stations.size() + rows - 1) / rows),
@@ -5064,9 +5066,10 @@ public final class IceRoadPlannerOverlay {
       exportMenu = false;
       return true;
     }
-    int snapX = Math.min(sw - 154, PROJECT_X + 8 + EditorTool.values().length * TOOL_W);
-    if (snapMenu && mx >= snapX && mx <= snapX + 146 && my >= sh - 138 && my < sh - 38) {
-      int row = ((int) my - (sh - 134)) / 19;
+    var toolbarLayout=PlannerToolbarLayout.of(sw,sh);
+    var snapBounds=toolbarLayout.snapMenu();
+    if (snapMenu && snapBounds.contains(mx,my)) {
+      int row = ((int) my - snapBounds.y() - 4) / 19;
       List<SnapTarget> targets =
           List.of(
               SnapTarget.GRID,
@@ -5080,7 +5083,7 @@ public final class IceRoadPlannerOverlay {
       }
       return true;
     }
-    if (my >= 9 && my < 27 && mx >= PROJECT_X + 150 && mx < PROJECT_X + 300) {
+    if (PlannerToolbarLayout.draftButton(sw).contains(mx,my)) {
       draftDropdown = !draftDropdown;
       exportMenu = false;
       return true;
@@ -5106,7 +5109,8 @@ public final class IceRoadPlannerOverlay {
         return true;
       }
       List<NetworkRow> rows = networkRows(d);
-      if (my >= 102 && my < 102 + rows.size() * 20) {
+      int visibleRows=Math.min(rows.size(),Math.max(0,(bottom-170-102)/20));
+      if (my >= 102 && my < 102 + visibleRows * 20) {
         int rowIndex = ((int) my - 102) / 20;
         if (rowIndex < rows.size()) {
           NetworkRow row = rows.get(rowIndex);
@@ -5161,17 +5165,11 @@ public final class IceRoadPlannerOverlay {
       }
       return true;
     }
-    if (my >= bottom && my <= sh - 6 && mx >= PROJECT_X) {
-      int index = ((int) mx - PROJECT_X - 8) / TOOL_W;
-      if (index >= 0 && index < EditorTool.values().length) {
-        activateTool(EditorTool.values()[index]);
-        notice("Tool: " + editorState.tool().label());
-        return true;
-      }
-      if (mx >= snapX) {
-        snapMenu = !snapMenu;
-        return true;
-      }
+    int index=toolbarLayout.hit(mx,my);
+    if(index>=0){
+      if(index<EditorTool.values().length){activateTool(EditorTool.values()[index]);notice("Tool: "+editorState.tool().label());}
+      else snapMenu=!snapMenu;
+      return true;
     }
     return false;
   }

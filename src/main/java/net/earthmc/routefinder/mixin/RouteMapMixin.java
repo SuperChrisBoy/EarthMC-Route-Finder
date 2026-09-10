@@ -27,7 +27,8 @@ public abstract class RouteMapMixin {
         double dim=RouteFinderMod.mapScale(),s=routefinder$scale();
         if(!(s>0))return;
         if(RouteFinderMod.composingScreenshot())return;
-        TeleportViewerOverlay.render(g,cameraX*dim,cameraZ*dim,s,w,h,RouteFinderMod.getConfig());
+        IceRoadPlannerOverlay.renderUi(g,w,h);
+        if(!IceRoadPlannerOverlay.active())TeleportViewerOverlay.render(g,cameraX*dim,cameraZ*dim,s,w,h,RouteFinderMod.getConfig());
         RouteToolbar.render(g,w);
     }
     @Inject(method={"mouseClicked","method_25402"},at=@At("HEAD"),cancellable=true)
@@ -37,7 +38,7 @@ public abstract class RouteMapMixin {
         double x=event.x(),y=event.y(),s=routefinder$scale(),dim=RouteFinderMod.mapScale();
         if(!(s>0))return;
         double wx=(x-w/2.0)/s+cameraX*dim,wz=(y-h/2.0)/s+cameraZ*dim;
-        if(RouteToolbar.click(x,y,w)||TeleportViewerOverlay.click(x,y,w,h,RouteFinderMod.getConfig())
+        if(RouteToolbar.click(x,y,w)||(!IceRoadPlannerOverlay.active()&&TeleportViewerOverlay.click(x,y,w,h,RouteFinderMod.getConfig()))
             ||(IceRoadPlannerOverlay.active()&&IceRoadPlannerOverlay.click(x,y,wx,wz,w))
             ||IceRoadOverlay.click(x,y,w,h,RouteFinderMod.getConfig())){ci.setReturnValue(true);return;}
         long now=System.nanoTime();double dx=x-routefinder$lastX,dy=y-routefinder$lastY;
@@ -53,7 +54,7 @@ public abstract class RouteMapMixin {
     private void routefinder$scroll(double x,double y,double horizontal,double vertical,CallbackInfoReturnable<Boolean> ci){
         if(!RouteFinderMod.mapAvailable())return;
         Minecraft mc=Minecraft.getInstance();
-        if(TeleportViewerOverlay.scroll(x,y,vertical,mc.getWindow().getGuiScaledWidth(),mc.getWindow().getGuiScaledHeight(),RouteFinderMod.getConfig()))ci.setReturnValue(true);
+        if(!IceRoadPlannerOverlay.active()&&TeleportViewerOverlay.scroll(x,y,vertical,mc.getWindow().getGuiScaledWidth(),mc.getWindow().getGuiScaledHeight(),RouteFinderMod.getConfig()))ci.setReturnValue(true);
     }
     @Inject(method={"keyPressed","method_25404"},at=@At("HEAD"),cancellable=true)
     private void routefinder$key(KeyEvent e,CallbackInfoReturnable<Boolean> ci){
