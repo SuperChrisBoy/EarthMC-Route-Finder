@@ -29,10 +29,11 @@ public final class CompatibilitySmoke implements ClientModInitializer {
                 minimap.getDeclaredMethod("isCircularMinimap",xaero.hud.minimap.module.MinimapSession.class);
                 SideControlsSmoke.verify(mc);
                 StationPopupSmoke.verify();
+                AccessibilitySavesSmoke.verify();
                 RouteFinderMod.LOGGER.info("ROUTE_FINDER_SMOKE_OK");
                 if(Boolean.getBoolean("routefinder.preview")){
                     mc.options.guiScale().set(3);mc.resizeGui();
-                    mc.gui.setScreen(new StationUiPreview());
+                    mc.gui.setScreen(new net.earthmc.routefinder.gui.AccessibilitySavesScreen(null));
                 }else mc.stop();
             }catch(ReflectiveOperationException e){throw new IllegalStateException("Compatibility smoke failed",e);}
         });

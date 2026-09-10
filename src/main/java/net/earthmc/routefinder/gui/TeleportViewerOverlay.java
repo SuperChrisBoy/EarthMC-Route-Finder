@@ -27,6 +27,10 @@ public final class TeleportViewerOverlay {
     private TeleportViewerOverlay(){}
 
     public static void open(double x,double z){targetX=x;targetZ=z;open=true;minimized=false;RouteFinderConfig cfg=RouteFinderMod.getConfig();advanced=cfg.teleportAdvancedEnabled&&cfg.teleportDefaultAdvanced;destinationView=DestinationView.USABLE;exitFilter=ExitFilter.EVERYTHING;selected=scroll=0;resultsCleared=false;advancedConfirmed=false;feedback="";currentPlan=null;currentRoutes=List.of();pendingRoutes=null;routeGeneration++;nextRoutePollAt=0;RouteFinderMod.refreshTeleportData(x,z);}
+    public static void accessibilityLoaded(){
+        routeGeneration++;pendingRoutes=null;currentPlan=null;currentRoutes=List.of();
+        selected=scroll=0;nextRoutePollAt=0;resultsCleared=false;
+    }
     public static void stationReportChanged(){currentPlan=null;routeGeneration++;}
     public static boolean open(){return open;}
     public record MinimapRoute(double spawnX,double spawnZ,double targetX,double targetZ,double walkingDistance,net.earthmc.routefinder.ice.IceRoadNetwork.Trip ice){}

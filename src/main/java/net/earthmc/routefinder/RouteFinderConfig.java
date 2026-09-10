@@ -26,6 +26,7 @@ public final class RouteFinderConfig {
     public int teleportAdvancedMaxJoinHops = 1;
     public boolean teleportRememberPrimaryHome = true;
     public String teleportPrimaryHomeTown = "";
+    public String teleportAccessibilitySave = "";
     public int teleportWindowX = 118;
     public int teleportWindowY = 34;
     public java.util.Map<String,String> teleportSpawnReports = new java.util.HashMap<>();
@@ -41,6 +42,7 @@ public final class RouteFinderConfig {
     private void sanitize(){
         iceRoadLineWidth=Math.clamp(iceRoadLineWidth,1,9);iceRoadMarkerSize=Math.clamp(iceRoadMarkerSize,8,24);
         iceRoadStationFilter=Math.clamp(iceRoadStationFilter,0,2);teleportCommandAction=Math.clamp(teleportCommandAction,0,2);
+        if(teleportAccessibilitySave==null)teleportAccessibilitySave="";
         if(teleportPrimaryHomeTown==null)teleportPrimaryHomeTown="";
         if(teleportSpawnReports==null)teleportSpawnReports=new java.util.HashMap<>();
         if(iceRoadStationReports==null)iceRoadStationReports=new java.util.HashMap<>();

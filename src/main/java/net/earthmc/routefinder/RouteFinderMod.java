@@ -60,6 +60,11 @@ public final class RouteFinderMod implements ClientModInitializer {
         access.ensure(currentTownSnapshot(),Minecraft.getInstance().getUser().getName());
         TeleportAccessService service=access;return CompletableFuture.supplyAsync(()->service.plan(x,z));
     }
+    public static void loadAccessibilitySave(net.earthmc.routefinder.storage.AccessibilitySaves.Save save){
+        access.replaceSpawnReports(save.reports());
+        config.teleportAccessibilitySave=save.name();config.save();
+        TeleportViewerOverlay.accessibilityLoaded();
+    }
     public static void setTeleportSpawnReport(TeleportDestination d,TeleportDestination.PhysicalAccess a){access.setSpawnReport(d,a);}
     public static String teleportTownName(double x,double z){
         for(TownData t:currentTownSnapshot())if(contains(t,x,z))return t.name();return null;
