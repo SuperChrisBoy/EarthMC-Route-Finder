@@ -400,7 +400,18 @@ public final class IceRoadPlannerOverlay {
   }
 
   /** Draw editor controls after map markers and the base addon chrome. */
+  private static Double placementY;
+  private static OverlayViewport uiViewport(){
+    var window=Minecraft.getInstance().getWindow();
+    return OverlayViewport.planner(window.getGuiScaledWidth(),window.getGuiScaledHeight());
+  }
   public static void renderUi(GuiGraphics g,int sw,int sh){
+    var v=OverlayViewport.planner(sw,sh);
+    g.pose().pushMatrix();
+    g.pose().translate(v.anchor(),0);g.pose().scale(v.scale(),v.scale());g.pose().translate(-v.anchor(),0);
+    try {renderScaledUi(g,v.width(),v.height());} finally {g.pose().popMatrix();}
+  }
+  private static void renderScaledUi(GuiGraphics g,int sw,int sh){
     if(!active)return;
     if (!RouteFinderMod.composingScreenshot()) {
       editorChrome(g, sw, sh);
@@ -784,11 +795,44 @@ public final class IceRoadPlannerOverlay {
     if (movedBeyondClickThreshold(gestureStartX, gestureStartY, mx, my)) return false;
     double[] releaseWorld = currentWorldAt(mx, my, pendingWorldX, pendingWorldZ);
     Point p = snapPoint(draft(), branch(), releaseWorld[0], releaseWorld[1]);
-    if (pointConnecting) finishPointConnection(p);
-    else place(p.x, p.z);
+    if(placementY==null)choosePlacementY(()->placeMapPoint(p));
+    else placeMapPoint(p);
     return shouldConsumeRelease(false);
   }
 
+  private static void placeMapPoint(Point p){
+    if(pointConnecting)finishPointConnection(new Point(p.x,p.z,placementY));
+    else place(p.x,p.z);
+  }
+  private static String exact(double value){return Double.toString(value);}
+  private static void choosePlacementY(Runnable after){
+    var mc=Minecraft.getInstance();
+    mc.setScreen(new CoordinatesScreen(mc.screen,"Choose Y before placing points","0",
+        placementY==null?"":exact(placementY),"0",true,v->{
+          placementY=v.y();coordinateY=exact(v.y());if(after!=null)after.run();
+        }));
+  }
+  private static void addCoordinates(){
+    var mc=Minecraft.getInstance();
+    mc.setScreen(new CoordinatesScreen(mc.screen,"Place at X / Y / Z",coordinateX,
+        placementY==null?"":exact(placementY),coordinateZ,false,v->{
+          placementY=v.y();
+          if(pointConnecting)finishPointConnection(new Point(v.x(),v.z(),v.y()));
+          else placeExact(v.x(),v.y(),v.z());
+        }));
+  }
+  private static void editCoordinates(boolean marker){
+    var mc=Minecraft.getInstance();
+    Station station=selectedStation();Point point=selectedPointValue();
+    if(marker&&station==null||!marker&&point==null)return;
+    double x=marker?station.x:point.x,y=marker?station.y:pointY(point,draft().branches.get(selectedPointBranch)),
+        z=marker?station.z:point.z;
+    mc.setScreen(new CoordinatesScreen(mc.screen,marker?"Edit marker X / Y / Z":"Edit point X / Y / Z",
+        exact(x),exact(y),exact(z),false,v->{
+          coordinateX=exact(v.x());coordinateY=exact(v.y());coordinateZ=exact(v.z());
+          if(marker)applyMarkerCoordinates();else applySelectedPointCoordinates();
+        }));
+  }
   private static void armPlacement(double mx, double my, double worldX, double worldZ) {
     dragArmed = false;
     pendingPlacement = true;
@@ -863,70 +907,11 @@ public final class IceRoadPlannerOverlay {
   public static boolean click(double mx, double my, double worldX, double worldZ, int sw) {
     if (!active) return false;
     if (clickPlannerUi(mx, my, sw)) {
-      uiPressHandled = true;
+      // A dialog receives the release itself; do not consume the next map placement.
+      uiPressHandled = !(Minecraft.getInstance().screen instanceof CoordinatesScreen);
       return true;
     }
-    int x = sw - W - 8, y = 8, py = (int) my - y;
-    if (draftDropdown) {
-      int row = (py - 46) / ROW, index = firstVisibleDraft() + row;
-      if (mx >= x + 8
-          && mx <= x + W - 8
-          && py >= 46
-          && row >= 0
-          && row < visibleDraftCount()
-          && index < drafts.size()) {
-        saveLibraryQuiet();
-        draftIndex = index;
-        draftDropdown = false;
-        clearMarkerSelection();
-        notice("Opened " + draft().name);
-        return true;
-      }
-      draftDropdown = false;
-    }
-    if (toolDropdown) {
-      int chosen = (py - 94) / ROW;
-      if (mx >= x + 8 && mx <= x + W - 8 && py >= 94 && chosen >= 0 && chosen < TYPES.length) {
-        tool = chosen;
-        toolDropdown = false;
-        return true;
-      }
-      toolDropdown = false;
-    }
-    if (false && mx >= x && mx <= x + W && my >= y && my <= y + panelHeight()) {
-      if (py >= 26 && py < 46) draftDropdown = !draftDropdown;
-      else if (py >= 50 && py < 70) newDraft();
-      else if (py >= 74 && py < 94) toolDropdown = !toolDropdown;
-      else if (py >= 100 && py < 120) coordinateField = 1;
-      else if (py >= 124 && py < 144) coordinateField = 2;
-      else if (py >= 148 && py < 168) coordinateField = 3;
-      else if (py >= 172 && py < 192) placeCoordinates();
-      else if (py >= 196 && py < 216) placeAtPlayer();
-      else if (py >= 220 && py < 240) {
-        checkpoint();
-        draft().showMarkerInfo = !draft().showMarkerInfo;
-        syncCoordinateMode(draft());
-        saveLibraryQuiet();
-      } else if (py >= 254 && py < 254 + visibleBranchCount() * ROW) {
-        int index = firstVisibleBranch() + (py - 254) / ROW;
-        if (index < draft().branches.size()) {
-          draft().branch = index;
-          clearMarkerSelection();
-          branchPanel = true;
-        }
-      } else {
-        int actions = 254 + visibleBranchCount() * ROW;
-        if (py >= actions && py < actions + 20) newBranch();
-        else if (py >= actions + 24 && py < actions + 44) deleteBranch();
-        else if (py >= actions + 48 && py < actions + 68) undo();
-        else if (py >= actions + 72 && py < actions + 92) redo();
-        else if (py >= actions + 96 && py < actions + 116) saveLibrary();
-        else if (py >= actions + 120 && py < actions + 140) export();
-        else if (py >= actions + 144 && py < actions + 164) exportImage();
-        else if (py >= actions + 168 && py < actions + 188) deleteDraft();
-      }
-      return true;
-    }
+    draftDropdown = toolDropdown = false;
     coordinateField = 0;
     DragHit hit = nearestHit(mx, my);
     if (hit != null) {
@@ -1005,6 +990,7 @@ public final class IceRoadPlannerOverlay {
   }
 
   private static boolean clickPlannerUi(double mx, double my, int sw) {
+    var v=uiViewport();mx=v.x(mx);my=v.y(my);sw=v.width();
     // The route panel is rendered as a modal and therefore receives input before every other panel.
     if (!multiSelection.isEmpty() && clickMultiSelectionPanel(mx, my, sw)) return true;
     if (clickColorPicker(mx, my, sw)) return true;
@@ -1284,7 +1270,7 @@ public final class IceRoadPlannerOverlay {
   private static void markerPanel(GuiGraphics g, int sw) {
     Station s = selectedStation();
     if (s == null) return;
-    int x = markerPanelX(sw), y = 8;
+    int x = markerPanelX(sw), y = 40;
     g.fill(x, y, x + W, y + 194, 0xF20A1419);
     g.drawString(Minecraft.getInstance().font, "Selected marker", x + 8, y + 8, 0xFFFFFFFF, false);
     g.drawString(
@@ -1311,7 +1297,7 @@ public final class IceRoadPlannerOverlay {
   }
 
   private static void multiSelectionPanel(GuiGraphics g, int sw) {
-    int x = markerPanelX(sw), y = 8;
+    int x = markerPanelX(sw), y = 40;
     int messageHeight = extractionMessage.isEmpty() ? 0 : 28;
     g.fill(x, y, x + W, y + 184 + messageHeight, 0xF20A1419);
     g.drawString(Minecraft.getInstance().font, "Extract selected route", x + 8, y + 8, 0xFFFFFFFF, false);
@@ -1339,7 +1325,7 @@ public final class IceRoadPlannerOverlay {
 
   private static boolean clickMultiSelectionPanel(double mx, double my, int sw) {
     if (multiSelection.isEmpty()) return false;
-    int x = markerPanelX(sw), y = 8;
+    int x = markerPanelX(sw), y = 40;
     int height = extractionMessage.isEmpty() ? 184 : 212;
     if (mx < x || mx > x + W || my < y || my > y + height) return false;
     int action = multiSelectionActionAt((int) my - y);
@@ -2007,7 +1993,7 @@ public final class IceRoadPlannerOverlay {
     drawSelectedSegmentHandles(g);
     Branch b = draft().branches.get(selectedSegmentBranch);
     Point a = selectedSegmentStart(b), c = selectedSegmentEnd(b);
-    int x = markerPanelX(sw), y = 8;
+    int x = markerPanelX(sw), y = 40;
     boolean link = selectedSegment < 0;
     g.fill(x, y, x + W, y + (link ? 140 : 280), 0xF20A1419);
     g.drawString(Minecraft.getInstance().font, "Selected line segment", x + 8, y + 8, 0xFFFFFFFF, false);
@@ -2231,7 +2217,7 @@ public final class IceRoadPlannerOverlay {
   private static void pointPanel(GuiGraphics g, int sw) {
     if (!validSelectedPoint()) return;
     Point p = selectedPointValue();
-    int x = markerPanelX(sw), y = 8;
+    int x = markerPanelX(sw), y = 40;
     g.fill(x, y, x + W, y + 208, 0xF20A1419);
     g.drawString(
         Minecraft.getInstance().font,
@@ -2278,7 +2264,7 @@ public final class IceRoadPlannerOverlay {
   private static void branchPanel(GuiGraphics g, int sw) {
     if (!branchPanel) return;
     Branch b = branch();
-    int x = markerPanelX(sw), y = 8;
+    int x = markerPanelX(sw), y = 40;
     g.fill(x, y, x + W, y + BRANCH_PANEL_H, 0xF20A1419);
     g.drawString(Minecraft.getInstance().font, "Selected branch", x + 8, y + 8, 0xFFFFFFFF, false);
     g.drawString(
@@ -2401,10 +2387,9 @@ public final class IceRoadPlannerOverlay {
   private static void updateColorPickerFromMouse() {
     Minecraft mc = Minecraft.getInstance();
     if (mc == null) return;
-    setPickerFromScreen(
-        mc.mouseHandler.getScaledXPos(mc.getWindow()),
-        mc.mouseHandler.getScaledYPos(mc.getWindow()),
-        mc.getWindow().getGuiScaledWidth());
+    var v=uiViewport();
+    setPickerFromScreen(v.x(mc.mouseHandler.getScaledXPos(mc.getWindow())),
+        v.y(mc.mouseHandler.getScaledYPos(mc.getWindow())),v.width());
   }
 
   private static void setPickerFromScreen(double mx, double my, int sw) {
@@ -2444,7 +2429,7 @@ public final class IceRoadPlannerOverlay {
         || clickSegmentPanel(mx, my, sw)) return true;
     Station s = selectedStation();
     if (s == null) return false;
-    int x = markerPanelX(sw), y = 8;
+    int x = markerPanelX(sw), y = 40;
     if (mx < x || mx > x + W || my < y || my > y + BRANCH_PANEL_H) return false;
     int py = (int) my - y;
     if (py >= 54 && py < 74) {
@@ -2456,7 +2441,7 @@ public final class IceRoadPlannerOverlay {
         markerEditing = true;
         loadMarkerCoordinates(s);
       }
-      applyMarkerCoordinates();
+      editCoordinates(true);
     } else if (py >= 102 && py < 122) startNameEdit(1, s.name);
     else if (py >= 126 && py < 146) markerMembershipPanel = !markerMembershipPanel;
     else if (py >= 150 && py < 170) deleteSelectedMarker();
@@ -2489,7 +2474,7 @@ public final class IceRoadPlannerOverlay {
     int pages = Math.max(1, (memberships.size() + rows - 1) / rows);
     markerMembershipPage = Math.clamp(markerMembershipPage, 0, pages - 1);
     int from = markerMembershipPage * rows, count = Math.min(rows, memberships.size() - from);
-    int x = Math.max(PROJECT_X + PROJECT_W + 8, markerPanelX(sw) - W - 4), y = 8;
+    int x = Math.max(PROJECT_X + PROJECT_W + 8, markerPanelX(sw) - W - 4), y = 40;
     g.fill(x, y, x + W, y + 36 + (count + 1) * 20, 0xFA0A1419);
     g.drawString(Minecraft.getInstance().font, "Marker memberships", x + 8, y + 8, 0xFFFFFFFF, false);
     g.drawString(Minecraft.getInstance().font, marker.name, x + 8, y + 22, 0xFFFFD36A, false);
@@ -2519,7 +2504,7 @@ public final class IceRoadPlannerOverlay {
     int pages = Math.max(1, (memberships.size() + rows - 1) / rows);
     markerMembershipPage = Math.clamp(markerMembershipPage, 0, pages - 1);
     int from = markerMembershipPage * rows, count = Math.min(rows, memberships.size() - from);
-    int x = Math.max(PROJECT_X + PROJECT_W + 8, markerPanelX(sw) - W - 4), y = 8;
+    int x = Math.max(PROJECT_X + PROJECT_W + 8, markerPanelX(sw) - W - 4), y = 40;
     if (mx < x || mx > x + W || my < y || my > y + 36 + (count + 1) * 20) return false;
     int row = ((int) my - y - 36) / 20;
     if (row >= 0 && row < count) {
@@ -2551,13 +2536,13 @@ public final class IceRoadPlannerOverlay {
   private static boolean clickPointPanel(double mx, double my, int sw) {
     if (clickPointMembershipPanel(mx, my, sw)) return true;
     if (!validSelectedPoint()) return false;
-    int x = markerPanelX(sw), y = 8;
+    int x = markerPanelX(sw), y = 40;
     if (mx < x || mx > x + W || my < y || my > y + 208) return false;
     int py = (int) my - y;
     if (py >= 54 && py < 74) {
       pointEditing = !pointEditing;
       notice(pointEditing ? "Drag the selected point" : "Finished moving point");
-    } else if (py >= 78 && py < 98) applySelectedPointCoordinates();
+    } else if (py >= 78 && py < 98) editCoordinates(false);
     else if (py >= 102 && py < 122) {
       if (pointConnecting) cancelPointConnection();
       else beginPointConnection();
@@ -2578,7 +2563,7 @@ public final class IceRoadPlannerOverlay {
     int pages = Math.max(1, (memberships.size() + rows - 1) / rows);
     pointMembershipPage = Math.clamp(pointMembershipPage, 0, pages - 1);
     int from = pointMembershipPage * rows, count = Math.min(rows, memberships.size() - from);
-    int x = Math.max(PROJECT_X + PROJECT_W + 8, markerPanelX(sw) - W - 4), y = 8;
+    int x = Math.max(PROJECT_X + PROJECT_W + 8, markerPanelX(sw) - W - 4), y = 40;
     g.fill(x, y, x + W, y + 36 + (count + 1) * 20, 0xFA0A1419);
     g.drawString(Minecraft.getInstance().font, "Vertex memberships", x + 8, y + 8, 0xFFFFFFFF, false);
     g.drawString(
@@ -2603,7 +2588,7 @@ public final class IceRoadPlannerOverlay {
     int pages = Math.max(1, (memberships.size() + rows - 1) / rows);
     pointMembershipPage = Math.clamp(pointMembershipPage, 0, pages - 1);
     int from = pointMembershipPage * rows, count = Math.min(rows, memberships.size() - from);
-    int x = Math.max(PROJECT_X + PROJECT_W + 8, markerPanelX(sw) - W - 4), y = 8;
+    int x = Math.max(PROJECT_X + PROJECT_W + 8, markerPanelX(sw) - W - 4), y = 40;
     if (mx < x || mx > x + W || my < y || my > y + 36 + (count + 1) * 20) return false;
     int row = ((int) my - y - 36) / 20;
     if (row >= 0 && row < count) togglePointMembership(d, point, memberships.get(from + row));
@@ -2637,7 +2622,7 @@ public final class IceRoadPlannerOverlay {
     int pages = Math.max(1, (memberships.size() + rows - 1) / rows);
     segmentMembershipPage = Math.clamp(segmentMembershipPage, 0, pages - 1);
     int from = segmentMembershipPage * rows, count = Math.min(rows, memberships.size() - from);
-    int x = Math.max(PROJECT_X + PROJECT_W + 8, markerPanelX(sw) - W - 4), y = 8;
+    int x = Math.max(PROJECT_X + PROJECT_W + 8, markerPanelX(sw) - W - 4), y = 40;
     g.fill(x, y, x + W, y + 36 + (count + 1) * 20, 0xFA0A1419);
     g.drawString(Minecraft.getInstance().font, "Segment memberships", x + 8, y + 8, 0xFFFFFFFF, false);
     g.drawString(
@@ -2664,7 +2649,7 @@ public final class IceRoadPlannerOverlay {
     int pages = Math.max(1, (memberships.size() + rows - 1) / rows);
     segmentMembershipPage = Math.clamp(segmentMembershipPage, 0, pages - 1);
     int from = segmentMembershipPage * rows, count = Math.min(rows, memberships.size() - from);
-    int x = Math.max(PROJECT_X + PROJECT_W + 8, markerPanelX(sw) - W - 4), y = 8;
+    int x = Math.max(PROJECT_X + PROJECT_W + 8, markerPanelX(sw) - W - 4), y = 40;
     if (mx < x || mx > x + W || my < y || my > y + 36 + (count + 1) * 20) return false;
     int row = ((int) my - y - 36) / 20;
     if (row >= 0 && row < count) {
@@ -2736,7 +2721,7 @@ public final class IceRoadPlannerOverlay {
   private static boolean clickSegmentPanel(double mx, double my, int sw) {
     if (clickSegmentMembershipPanel(mx, my, sw)) return true;
     if (!validSelectedSegment()) return false;
-    int x = markerPanelX(sw), y = 8;
+    int x = markerPanelX(sw), y = 40;
     boolean link = selectedSegment < 0;
     if (mx < x || mx > x + W || my < y || my > y + (link ? 140 : 280)) return false;
     int py = (int) my - y;
@@ -2766,7 +2751,7 @@ public final class IceRoadPlannerOverlay {
 
   private static boolean clickBranchPanel(double mx, double my, int sw) {
     if (!branchPanel) return false;
-    int x = markerPanelX(sw), y = 8;
+    int x = markerPanelX(sw), y = 40;
     if (mx < x || mx > x + W || my < y || my > y + BRANCH_PANEL_H) return false;
     int py = (int) my - y;
     if (py >= 46 && py < 66) startNewLine();
@@ -2906,9 +2891,9 @@ public final class IceRoadPlannerOverlay {
   private static void applySelectedPointCoordinates() {
     if (!validSelectedPoint()) return;
     try {
-      double x = blockCenter(Double.parseDouble(coordinateX)),
+      double x = Double.parseDouble(coordinateX),
           y = Double.parseDouble(coordinateY),
-          z = blockCenter(Double.parseDouble(coordinateZ));
+          z = Double.parseDouble(coordinateZ);
       if (!Double.isFinite(x) || !Double.isFinite(y) || !Double.isFinite(z))
         throw new NumberFormatException();
       checkpoint();
@@ -2970,7 +2955,7 @@ public final class IceRoadPlannerOverlay {
     Branch selectedOwner = draft().branches.get(selectedPointBranch);
     target =
         new Point(
-            blockCenter(target.x), blockCenter(target.z), pointY(connectionStart, selectedOwner));
+            target.x, target.z, Double.isFinite(target.y)?target.y:pointY(connectionStart, selectedOwner));
     if (target.equals(connectionStart)) {
       notice("Choose a different point");
       return;
@@ -3013,6 +2998,7 @@ public final class IceRoadPlannerOverlay {
   }
 
   private static void addPointToSelectedSegment() {
+    if(placementY==null){choosePlacementY(IceRoadPlannerOverlay::addPointToSelectedSegment);return;}
     if (!validSequentialSelectedSegment() || selectedSegmentPoint == null) return;
     Branch b = draft().branches.get(selectedSegmentBranch);
     Point a = b.vertices.get(selectedSegment), c = b.vertices.get(selectedSegment + 1);
@@ -3021,7 +3007,7 @@ public final class IceRoadPlannerOverlay {
       return;
     }
     checkpoint();
-    insertPoint(b, selectedSegment + 1, selectedSegmentPoint);
+    insertPoint(b, selectedSegment + 1, new Point(selectedSegmentPoint.x,selectedSegmentPoint.z,placementY));
     selectedSegment++;
     saveLibraryQuiet();
     notice(
@@ -3381,9 +3367,9 @@ public final class IceRoadPlannerOverlay {
     Station old = selectedStation();
     if (old == null) return;
     try {
-      double x = blockCenter(Double.parseDouble(coordinateX)),
+      double x = Double.parseDouble(coordinateX),
           y = Double.parseDouble(coordinateY),
-          z = blockCenter(Double.parseDouble(coordinateZ));
+          z = Double.parseDouble(coordinateZ);
       if (!Double.isFinite(x) || !Double.isFinite(y) || !Double.isFinite(z))
         throw new NumberFormatException();
       checkpoint();
@@ -3491,10 +3477,11 @@ public final class IceRoadPlannerOverlay {
   }
 
   private static void place(double x, double z) {
+    if(placementY==null){final double px=x,pz=z;choosePlacementY(()->place(px,pz));return;}
     checkpoint();
     Draft d = draft();
     Branch b = branch();
-    double y = parseY();
+    double y = placementY;
     x = blockCenter(x);
     z = blockCenter(z);
     if (tool == 0) {
@@ -3512,8 +3499,6 @@ public final class IceRoadPlannerOverlay {
     checkpoint();
     Draft d = draft();
     Branch b = branch();
-    x = blockCenter(x);
-    z = blockCenter(z);
     if (tool == 0) {
       addPoint(b, x, y, z);
       b.y = y;
@@ -3828,7 +3813,7 @@ public final class IceRoadPlannerOverlay {
   }
 
   private static void addPoint(Branch b, double x, double y, double z) {
-    Point p = new Point(blockCenter(x), blockCenter(z), y);
+    Point p = new Point(x, z, y);
     if (b.vertices.contains(p)) {
       notice("That point already exists; select it to connect");
       newLinePending = false;
@@ -4816,7 +4801,9 @@ public final class IceRoadPlannerOverlay {
     button(g, right - 188, 9, 86, "Validate");
     button(g, right - 96, 9, 88, "Export v");
     int bottom = PlannerToolbarLayout.of(sw, sh).top();
-    g.fill(PROJECT_X, 36, PROJECT_X + PROJECT_W, bottom - 6, 0xE80A1419);
+    button(g,PROJECT_X+8,bottom-22,83,placementY==null?"Y: unset":"Y: "+number(placementY));
+    button(g,PROJECT_X+99,bottom-22,83,"Add XYZ");
+    g.fill(PROJECT_X, 36, PROJECT_X + PROJECT_W, bottom - 24, 0xE80A1419);
     g.drawString(Minecraft.getInstance().font, "NETWORK", PROJECT_X + 8, 44, 0xFF8FD9FF, false);
     button(g, PROJECT_X + 8, 60, PROJECT_W - 16, d.name + " v");
     g.drawString(
@@ -5001,7 +4988,7 @@ public final class IceRoadPlannerOverlay {
 
   private static boolean clickEditorChrome(double mx, double my, int sw) {
     Minecraft mc = Minecraft.getInstance();
-    int sh = mc == null ? 480 : mc.getWindow().getGuiScaledHeight(), bottom = PlannerToolbarLayout.of(sw, sh).top();
+    int sh = mc == null ? 600 : uiViewport().height(), bottom = PlannerToolbarLayout.of(sw, sh).top();
     if (markerListDropdown) {
       int rows = Math.max(1, Math.min(12, (sh - 100) / 19)),
           pages = Math.max(1, (draft().stations.size() + rows - 1) / rows),
@@ -5098,6 +5085,10 @@ public final class IceRoadPlannerOverlay {
     }
     if (mx >= PROJECT_X && mx <= PROJECT_X + PROJECT_W && my >= 36 && my < bottom) {
       Draft d = draft();
+      if(my>=bottom-22&&my<bottom-2){
+        if(mx<PROJECT_X+95)choosePlacementY(null);else addCoordinates();
+        return true;
+      }
       if (my >= 60 && my < 80) {
         draftDropdown = !draftDropdown;
         return true;

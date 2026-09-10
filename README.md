@@ -27,7 +27,13 @@ Open Xaero's World Map on EarthMC. The left-side button column provides **Ice ro
 - `/routefinder planner` toggles the planner; open the world map to edit.
 - `/routefinder target <x> <z>` selects a route destination; open the world map to view results.
 
-Teleport Viewer settings → **Accessibility saves** lists named town/nation spawn accessibility snapshots. Save current reports under a new name, load a snapshot immediately, or open the save folder. Loading replaces only physical spawn reports; it does not change teleport permissions or other settings. Saves are portable JSON files in `EarthMC Accessibility Saves/` directly inside the game directory. Refresh the list after adding files externally. The same screen can open the planner folder.
+Teleport Viewer settings → **Accessibility saves** lists named town/nation spawn accessibility snapshots. Save current reports under a new name (or confirm a warning to overwrite an existing save), load a snapshot immediately, or open the save folder. Loading replaces only physical spawn reports; it does not change teleport permissions or other settings. Saves are portable JSON files in `EarthMC Accessibility Saves/` directly inside the game directory. Refresh the list after adding files externally. The same screen can open the planner folder.
+
+Viewer and planner panels automatically scale to the available window size. Viewer results scroll in complete rows above the action footer.
+
+The planner's **Y: unset** button chooses the height used by subsequent placements; the first map placement prompts if no height has been chosen. **Add XYZ** places a point or marker from typed coordinates. Select an existing point or marker, then **Edit X/Y/Z** to edit its prefilled coordinates. Exact input preserves fractional coordinates; map clicks retain snapping.
+
+Teleport preferences are directly editable under the base mod's **Settings → Route settings** category, with its search and scrolling.
 
 Mod Menu also opens Route Finder settings. Ice road settings include width, marker size, station filtering and double-click targeting.
 

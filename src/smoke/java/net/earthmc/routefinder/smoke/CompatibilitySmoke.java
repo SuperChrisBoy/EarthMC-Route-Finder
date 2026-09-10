@@ -23,6 +23,7 @@ public final class CompatibilitySmoke implements ClientModInitializer {
                 SideControlsSmoke.verify(mc);
                 StationPopupSmoke.verify();
                 AccessibilitySavesSmoke.verify();
+                UiWorkflowSmoke.verify(mc);
                 RouteFinderMod.LOGGER.info("ROUTE_FINDER_SMOKE_OK");
                 mc.stop();
             }catch(ReflectiveOperationException e){throw new IllegalStateException("Compatibility smoke failed",e);}
