@@ -1,7 +1,7 @@
 package net.earthmc.routefinder.mixin;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.input.*;
 import net.earthmc.routefinder.RouteFinderMod;
 import net.earthmc.routefinder.gui.*;
@@ -21,7 +21,7 @@ public abstract class RouteMapMixin {
     @Unique private double routefinder$lastX,routefinder$lastY;
     @Unique private double routefinder$scale(){return (screenScale>0?scale/screenScale:scale)/RouteFinderMod.mapScale();}
     @Inject(method="renderPreDropdown",at=@At("RETURN"))
-    private void routefinder$render(GuiGraphicsExtractor g,int mx,int my,float delta,CallbackInfo ci){
+    private void routefinder$render(GuiGraphics g,int mx,int my,float delta,CallbackInfo ci){
         if(!RouteFinderMod.mapAvailable())return;
         Minecraft mc=Minecraft.getInstance();int w=mc.getWindow().getGuiScaledWidth(),h=mc.getWindow().getGuiScaledHeight();
         double dim=RouteFinderMod.mapScale(),s=routefinder$scale();
@@ -30,7 +30,7 @@ public abstract class RouteMapMixin {
         TeleportViewerOverlay.render(g,cameraX*dim,cameraZ*dim,s,w,h,RouteFinderMod.getConfig());
         RouteToolbar.render(g,w);
     }
-    @Inject(method="mouseClicked",at=@At("HEAD"),cancellable=true)
+    @Inject(method={"mouseClicked","method_25402"},at=@At("HEAD"),cancellable=true)
     private void routefinder$click(MouseButtonEvent event,boolean doubled,CallbackInfoReturnable<Boolean> ci){
         if(!RouteFinderMod.mapAvailable()||event.buttonInfo().button()!=0)return;
         Minecraft mc=Minecraft.getInstance();int w=mc.getWindow().getGuiScaledWidth(),h=mc.getWindow().getGuiScaledHeight();
@@ -45,23 +45,23 @@ public abstract class RouteMapMixin {
         routefinder$lastClick=now;routefinder$lastX=x;routefinder$lastY=y;
         if(doubleClick&&RouteFinderMod.getConfig().teleportMapClickAction){TeleportViewerOverlay.open(wx,wz);ci.setReturnValue(true);}
     }
-    @Inject(method="mouseReleased",at=@At("HEAD"),cancellable=true)
+    @Inject(method={"mouseReleased","method_25406"},at=@At("HEAD"),cancellable=true)
     private void routefinder$release(MouseButtonEvent e,CallbackInfoReturnable<Boolean> ci){
         if(e.buttonInfo().button()==0&&(IceRoadPlannerOverlay.release()|TeleportViewerOverlay.release(RouteFinderMod.getConfig())))ci.setReturnValue(true);
     }
-    @Inject(method="mouseScrolled",at=@At("HEAD"),cancellable=true)
+    @Inject(method={"mouseScrolled","method_25401"},at=@At("HEAD"),cancellable=true)
     private void routefinder$scroll(double x,double y,double horizontal,double vertical,CallbackInfoReturnable<Boolean> ci){
         if(!RouteFinderMod.mapAvailable())return;
         Minecraft mc=Minecraft.getInstance();
         if(TeleportViewerOverlay.scroll(x,y,vertical,mc.getWindow().getGuiScaledWidth(),mc.getWindow().getGuiScaledHeight(),RouteFinderMod.getConfig()))ci.setReturnValue(true);
     }
-    @Inject(method="keyPressed",at=@At("HEAD"),cancellable=true)
+    @Inject(method={"keyPressed","method_25404"},at=@At("HEAD"),cancellable=true)
     private void routefinder$key(KeyEvent e,CallbackInfoReturnable<Boolean> ci){
         if(!RouteFinderMod.mapAvailable())return;
         if(IceRoadPlannerOverlay.keyPressed(e.key())){ci.setReturnValue(true);return;}
         if(e.key()==GLFW.GLFW_KEY_ESCAPE&&TeleportViewerOverlay.open()){TeleportViewerOverlay.close();ci.setReturnValue(true);}
     }
-    @Inject(method="charTyped",at=@At("HEAD"),cancellable=true)
+    @Inject(method={"charTyped","method_25400"},at=@At("HEAD"),cancellable=true)
     private void routefinder$char(CharacterEvent e,CallbackInfoReturnable<Boolean> ci){
         if(!RouteFinderMod.mapAvailable()||!e.isAllowedChatCharacter())return;
         boolean consumed=false;for(char c:e.codepointAsString().toCharArray())consumed|=IceRoadPlannerOverlay.charTyped(c);

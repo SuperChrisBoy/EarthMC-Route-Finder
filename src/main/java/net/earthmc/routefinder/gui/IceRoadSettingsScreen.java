@@ -1,5 +1,5 @@
 package net.earthmc.routefinder.gui;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -17,8 +17,8 @@ public final class IceRoadSettingsScreen extends Screen {
         addRenderableWidget(Button.builder(Component.literal("Double-click route target: "+(cfg.teleportMapClickAction?"On":"Off")),b->{cfg.teleportMapClickAction=!cfg.teleportMapClickAction;cfg.save();rebuildWidgets();}).bounds(x,y+100,260,20).build());
         addRenderableWidget(Button.builder(Component.literal("Done"),b->onClose()).bounds(x,y+135,260,20).build());
     }
-    @Override public void extractRenderState(GuiGraphicsExtractor g,int mx,int my,float delta){
-        g.fill(0,0,width,height,0xEE10171D);super.extractRenderState(g,mx,my,delta);g.centeredText(font,title,width/2,15,0xFFFFFFFF);
+    @Override public void render(GuiGraphics g,int mx,int my,float delta){
+        g.fill(0,0,width,height,0xEE10171D);super.render(g,mx,my,delta);g.drawCenteredString(font,title,width/2,15,0xFFFFFFFF);
     }
     @Override public void onClose(){minecraft.setScreen(parent);}
 }

@@ -1,4 +1,4 @@
-plugins { id 'net.fabricmc.fabric-loom' version '1.17.9' }
+plugins { id 'net.fabricmc.fabric-loom-remap' version '1.17.9' }
 version = project.mod_version
 group = project.maven_group
 base { archivesName = project.archives_base_name + '-' + project.minecraft_version }
@@ -8,17 +8,22 @@ repositories {
     maven { url 'https://maven.fabricmc.net/' }
     maven { url 'https://maven.terraformersmc.com/releases/' }
 }
+configurations { xaeroNested }
 dependencies {
     minecraft 'com.mojang:minecraft:' + project.minecraft_version
-    implementation 'net.fabricmc:fabric-loader:' + project.loader_version
-    implementation 'net.fabricmc.fabric-api:fabric-api:' + project.fabric_version
-    compileOnly 'com.terraformersmc:modmenu:' + project.modmenu_version
+    mappings loom.officialMojangMappings()
+    modImplementation 'net.fabricmc:fabric-loader:' + project.loader_version
+    modImplementation 'net.fabricmc.fabric-api:fabric-api:' + project.fabric_version
+    modCompileOnly 'com.terraformersmc:modmenu:' + project.modmenu_version
     def pinned = new groovy.json.JsonSlurper().parse(file('gradle/mod-dependencies.json'))[project.minecraft_version]
-    compileOnly 'maven.modrinth:xaeros-minimap:' + pinned.minimap.id
-    compileOnly 'maven.modrinth:xaeros-world-map:' + pinned.worldmap.id
-    runtimeOnly 'maven.modrinth:xaeros-minimap:' + pinned.minimap.id
-    runtimeOnly 'maven.modrinth:xaeros-world-map:' + pinned.worldmap.id
-    runtimeOnly 'maven.modrinth:emcmap-addon:' + pinned.base.id
+    modCompileOnly 'maven.modrinth:xaeros-minimap:' + pinned.minimap.id
+    modCompileOnly 'maven.modrinth:xaeros-world-map:' + pinned.worldmap.id
+    modRuntimeOnly 'maven.modrinth:xaeros-minimap:' + pinned.minimap.id
+    modRuntimeOnly 'maven.modrinth:xaeros-world-map:' + pinned.worldmap.id
+    modRuntimeOnly 'maven.modrinth:emcmap-addon:' + pinned.base.id
+    // Loom strips nested jars while remapping mods. Include Xaero's bundled library in dev runs.
+    xaeroNested 'maven.modrinth:xaeros-minimap:' + pinned.minimap.id
+    modRuntimeOnly files(zipTree(configurations.xaeroNested.singleFile).matching { include 'META-INF/jars/xaerolib*.jar' }.files)
     testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.11.4'
 }
@@ -26,8 +31,8 @@ processResources {
     inputs.property 'version', project.version
     filesMatching('fabric.mod.json') { expand version: project.version }
 }
-java { toolchain { languageVersion = JavaLanguageVersion.of(25) }; withSourcesJar() }
-tasks.withType(JavaCompile).configureEach { options.release = 25 }
+java { toolchain { languageVersion = JavaLanguageVersion.of(21) }; withSourcesJar() }
+tasks.withType(JavaCompile).configureEach { options.release = 21 }
 tasks.withType(Test).configureEach { useJUnitPlatform() }
 jar { from('LICENSE'); from('NOTICE') }
 
@@ -41,5 +46,36 @@ if (project.hasProperty('smokeTest')) {
     loom {
         mods { routefinder_smoke { sourceSet sourceSets.smoke } }
         runs { client { source sourceSets.smoke; runDir 'run-smoke'; vmArg '-Djava.awt.headless=true' } }
+    }
+}
+
+if (project.hasProperty('smokeTest')) {
+    configurations { productionMods }
+    dependencies {
+        productionMods 'net.fabricmc.fabric-api:fabric-api:' + project.fabric_version
+        def pinned = new groovy.json.JsonSlurper().parse(file('gradle/mod-dependencies.json'))[project.minecraft_version]
+        productionMods 'maven.modrinth:xaeros-minimap:' + pinned.minimap.id
+        productionMods 'maven.modrinth:xaeros-world-map:' + pinned.worldmap.id
+        productionMods 'maven.modrinth:emcmap-addon:' + pinned.base.id
+    }
+    tasks.register('smokeJar', Jar) {
+        from sourceSets.smoke.output
+        archiveClassifier = 'smoke-dev'
+        destinationDirectory = layout.buildDirectory.dir('smoke')
+    }
+    tasks.register('remapSmokeJar', net.fabricmc.loom.task.RemapJarTask) {
+        dependsOn tasks.named('smokeJar')
+        inputFile = tasks.named('smokeJar').flatMap { it.archiveFile }
+        archiveClassifier = 'smoke'
+        destinationDirectory = layout.buildDirectory.dir('smoke')
+        addNestedDependencies = false
+    }
+    tasks.register('productionSmoke', net.fabricmc.loom.task.prod.ClientProductionRunTask) {
+        mods.from configurations.productionMods
+        mods.from tasks.named('remapJar').flatMap { it.archiveFile }
+        mods.from tasks.named('remapSmokeJar').flatMap { it.archiveFile }
+        runDir = file('run-production-smoke')
+        useXVFB = false
+        javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(21) }
     }
 }

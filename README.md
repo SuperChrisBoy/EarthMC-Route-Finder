@@ -48,3 +48,9 @@ The companion has its own `earthmcroutefinder` mod ID, Java package, assets and 
 Keep common route logic synchronized across branches; version-specific Fabric, Minecraft rendering and mappings changes belong on their respective branches.
 
 Derived source is Apache-2.0; see `LICENSE` and `NOTICE`. The bundled XiLeF2211 highway dataset retains its own included license.
+
+## Verified builds
+
+See [validation results](docs/VALIDATION.md) for the tested versions and limits. The verified Xaero baseline is Minimap 26.5.0 and World Map 1.46.0, with their bundled XaeroLib.
+
+On the `1.21.11` branch, `./gradlew productionSmoke -PsmokeTest` also tests the remapped release JAR in an isolated production client. Smoke test JARs are test tooling and must not be installed for normal play.

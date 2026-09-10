@@ -1,6 +1,6 @@
 package net.earthmc.routefinder.mixin;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.earthmc.routefinder.RouteFinderMod;
 import net.earthmc.routefinder.gui.*;
 import net.earthmc.routefinder.integration.MapAddonBridge;
@@ -14,7 +14,7 @@ import java.lang.reflect.Method;
 @Mixin(targets="net.townymap.TownyMapMod",remap=false)
 public abstract class RouteMinimapMixin {
     @Inject(method="renderOnWorldMap",at=@At("RETURN"),remap=false)
-    private static void routefinder$renderWorld(GuiGraphicsExtractor g,double x,double z,double scale,int width,int height,CallbackInfo ci){
+    private static void routefinder$renderWorld(GuiGraphics g,double x,double z,double scale,int width,int height,CallbackInfo ci){
         if(!RouteFinderMod.mapAvailable())return;
         if(!RouteFinderMod.composingPlannerExport())IceRoadOverlay.render(g,x,z,scale,width,height,RouteFinderMod.getConfig());
         IceRoadPlannerOverlay.render(g,x,z,scale,width,height);
@@ -22,7 +22,7 @@ public abstract class RouteMinimapMixin {
     @Unique private static Method routefinder$angle,routefinder$circle;
     @Unique private static boolean routefinder$failed;
     @Inject(method="renderOnMinimap",at=@At("RETURN"),remap=false)
-    private static void routefinder$render(GuiGraphicsExtractor g,Object raw,int x,int y,int size,CallbackInfo ci){
+    private static void routefinder$render(GuiGraphics g,Object raw,int x,int y,int size,CallbackInfo ci){
         Minecraft mc=Minecraft.getInstance();
         if(!RouteFinderMod.isTeleportFeatureAvailable()||mc.player==null||mc.level==null||!(raw instanceof MinimapSession session))return;
         if(MapAddonBridge.flag("isAccessBlocked")||!"minecraft_overworld".equals(MapAddonBridge.call("playerWorldResolved")))return;

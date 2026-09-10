@@ -16,3 +16,7 @@ libs/*.jar
 /scripts/update.cjs
 /scripts/resolve-dependencies.cjs
 /scripts/port.cjs
+
+/run-production-smoke/
+
+/scripts/finalize.cjs

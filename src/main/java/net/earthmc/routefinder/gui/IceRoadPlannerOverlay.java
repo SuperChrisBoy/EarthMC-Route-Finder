@@ -6,7 +6,7 @@ import java.nio.file.*;
 import java.util.*;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.earthmc.routefinder.RouteFinderMod;
 import net.earthmc.routefinder.iceeditor.AutosaveController;
 import net.earthmc.routefinder.iceeditor.EditorState;
@@ -308,7 +308,7 @@ public final class IceRoadPlannerOverlay {
   }
 
   public static void render(
-      GuiGraphicsExtractor g, double camX, double camZ, double scale, int sw, int sh) {
+      GuiGraphics g, double camX, double camZ, double scale, int sw, int sh) {
     if (!active || scale <= 0) return;
     viewCamX = camX;
     viewCamZ = camZ;
@@ -413,7 +413,7 @@ public final class IceRoadPlannerOverlay {
   }
 
   private static void drawOtherLines(
-      GuiGraphicsExtractor g,
+      GuiGraphics g,
       Draft d,
       double camX,
       double camZ,
@@ -466,13 +466,13 @@ public final class IceRoadPlannerOverlay {
     }
   }
 
-  private static void label(GuiGraphicsExtractor g, int x, int y, String text, int color) {
+  private static void label(GuiGraphics g, int x, int y, String text, int color) {
     g.fill(x + 8, y - 5, x + 12 + Minecraft.getInstance().font.width(text), y + 7, 0xCC071014);
-    g.text(Minecraft.getInstance().font, text, x + 10, y - 3, color, false);
+    g.drawString(Minecraft.getInstance().font, text, x + 10, y - 3, color, false);
   }
 
   private static void drawRouteNames(
-      GuiGraphicsExtractor g, Draft d, double camX, double camZ, double scale, int sw, int sh) {
+      GuiGraphics g, Draft d, double camX, double camZ, double scale, int sw, int sh) {
     for (Branch b : d.branches)
       if (b.visible && b.vertices.size() >= 2) {
         Point a = b.vertices.getFirst(), c = b.vertices.get(1);
@@ -483,7 +483,7 @@ public final class IceRoadPlannerOverlay {
   }
 
   private static void drawPointLinks(
-      GuiGraphicsExtractor g, Draft d, double camX, double camZ, double scale, int sw, int sh,
+      GuiGraphics g, Draft d, double camX, double camZ, double scale, int sw, int sh,
       List<SegmentHit> segments) {
     for (int bi = 0; bi < d.branches.size(); bi++) {
       Branch b = d.branches.get(bi);
@@ -533,7 +533,7 @@ public final class IceRoadPlannerOverlay {
   }
 
   private static void drawMeasurement(
-      GuiGraphicsExtractor g, double camX, double camZ, double scale, int sw, int sh) {
+      GuiGraphics g, double camX, double camZ, double scale, int sw, int sh) {
     if (measureStart == null) return;
     Point end = measureEnd;
     if (end == null) return;
@@ -548,7 +548,7 @@ public final class IceRoadPlannerOverlay {
         0xFFFFFF77);
   }
 
-  private static void creationHud(GuiGraphicsExtractor g, int sw, int sh) {
+  private static void creationHud(GuiGraphics g, int sw, int sh) {
     if (editorState.tool() != EditorTool.DRAW && !pointConnecting) return;
     Branch b = branch();
     double length = 0;
@@ -560,14 +560,14 @@ public final class IceRoadPlannerOverlay {
                 b.vertices.get(i).z - b.vertices.get(i - 1).z);
     int width = 330, x = Math.max(PROJECT_X + PROJECT_W + 8, sw / 2 - width / 2), y = sh - 66;
     g.fill(x, y, x + width, y + 28, 0xE80A1419);
-    g.text(
+    g.drawString(
         Minecraft.getInstance().font,
         "Drawing: " + draft().line + " / " + b.name + " | Y " + number(b.y),
         x + 8,
         y + 5,
         0xFFFFFFFF,
         false);
-    g.text(
+    g.drawString(
         Minecraft.getInstance().font,
         b.vertices.size() + " points | " + number(length) + " blocks | click: place | Esc: cancel",
         x + 8,
@@ -1010,11 +1010,11 @@ public final class IceRoadPlannerOverlay {
     return !handledOnPress;
   }
 
-  private static void panel(GuiGraphicsExtractor g, int sw) {
+  private static void panel(GuiGraphics g, int sw) {
     Draft d = draft();
     int x = sw - W - 8, y = 8;
     g.fill(x, y, x + W, y + panelHeight(), 0xF20A1419);
-    g.text(Minecraft.getInstance().font, "Ice Highway Editor", x + 8, y + 8, 0xFFFFFFFF, false);
+    g.drawString(Minecraft.getInstance().font, "Ice Highway Editor", x + 8, y + 8, 0xFFFFFFFF, false);
     button(g, x + 8, y + 26, W - 16, "Save: " + d.name + " ▼");
     button(g, x + 8, y + 50, W - 16, "New draft (" + drafts.size() + " saved)");
     button(g, x + 8, y + 74, W - 16, "Tool: " + LABELS[tool] + " ▼");
@@ -1024,7 +1024,7 @@ public final class IceRoadPlannerOverlay {
     button(g, x + 8, y + 172, W - 16, "Place exact coordinates");
     button(g, x + 8, y + 196, W - 16, "Place at current position");
     button(g, x + 8, y + 220, W - 16, "Coordinates: " + COORDINATE_MODES[d.coordinateMode]);
-    g.text(
+    g.drawString(
         Minecraft.getInstance().font,
         "Drag markers/vertices · line drag snaps",
         x + 8,
@@ -1072,11 +1072,11 @@ public final class IceRoadPlannerOverlay {
       }
     }
     if (System.currentTimeMillis() < feedbackUntil)
-      g.text(
+      g.drawString(
           Minecraft.getInstance().font, feedback, x + 8, y + panelHeight() + 4, 0xFFFFFF77, false);
   }
 
-  private static void actionOverlay(GuiGraphicsExtractor g, int sw) {
+  private static void actionOverlay(GuiGraphics g, int sw) {
     int x = sw - W - 8, y = 8 + 254 + visibleBranchCount() * ROW + 48;
     g.fill(x + 8, y, x + W - 8, y + 140, 0xFF0A1419);
     button(g, x + 8, y, W - 16, "Undo last change");
@@ -1109,17 +1109,17 @@ public final class IceRoadPlannerOverlay {
     return Math.clamp(draftIndex - 7, 0, Math.max(0, drafts.size() - 8));
   }
 
-  private static void button(GuiGraphicsExtractor g, int x, int y, int w, String text) {
+  private static void button(GuiGraphics g, int x, int y, int w, String text) {
     g.fill(x, y, x + w, y + 18, 0xFF20343D);
     g.fill(x, y + 16, x + w, y + 18, 0xFF4E7180);
-    g.centeredText(Minecraft.getInstance().font, text, x + w / 2, y + 5, 0xFFFFFFFF);
+    g.drawCenteredString(Minecraft.getInstance().font, text, x + w / 2, y + 5, 0xFFFFFFFF);
   }
 
   private static void field(
-      GuiGraphicsExtractor g, int x, int y, int w, String label, String value, boolean focused) {
+      GuiGraphics g, int x, int y, int w, String label, String value, boolean focused) {
     g.fill(x, y, x + w, y + 18, focused ? 0xFF315E70 : 0xFF17262D);
     g.fill(x, y + 16, x + w, y + 18, focused ? 0xFF7EDCF2 : 0xFF4E7180);
-    g.text(
+    g.drawString(
         Minecraft.getInstance().font,
         label + ": " + value + (focused ? "_" : ""),
         x + 6,
@@ -1275,20 +1275,20 @@ public final class IceRoadPlannerOverlay {
     return true;
   }
 
-  private static void markerPanel(GuiGraphicsExtractor g, int sw) {
+  private static void markerPanel(GuiGraphics g, int sw) {
     Station s = selectedStation();
     if (s == null) return;
     int x = markerPanelX(sw), y = 8;
     g.fill(x, y, x + W, y + 194, 0xF20A1419);
-    g.text(Minecraft.getInstance().font, "Selected marker", x + 8, y + 8, 0xFFFFFFFF, false);
-    g.text(
+    g.drawString(Minecraft.getInstance().font, "Selected marker", x + 8, y + 8, 0xFFFFFFFF, false);
+    g.drawString(
         Minecraft.getInstance().font,
         s.name + " · " + labelForType(s.type),
         x + 8,
         y + 24,
         0xFFFFD36A,
         false);
-    g.text(
+    g.drawString(
         Minecraft.getInstance().font,
         "XYZ " + number(s.x) + ", " + number(s.y) + ", " + number(s.z),
         x + 8,
@@ -1304,12 +1304,12 @@ public final class IceRoadPlannerOverlay {
     if (markerMembershipPanel) drawMarkerMembershipPanel(g, sw, s);
   }
 
-  private static void multiSelectionPanel(GuiGraphicsExtractor g, int sw) {
+  private static void multiSelectionPanel(GuiGraphics g, int sw) {
     int x = markerPanelX(sw), y = 8;
     int messageHeight = extractionMessage.isEmpty() ? 0 : 28;
     g.fill(x, y, x + W, y + 184 + messageHeight, 0xF20A1419);
-    g.text(Minecraft.getInstance().font, "Extract selected route", x + 8, y + 8, 0xFFFFFFFF, false);
-    g.text(
+    g.drawString(Minecraft.getInstance().font, "Extract selected route", x + 8, y + 8, 0xFFFFFFFF, false);
+    g.drawString(
         Minecraft.getInstance().font,
         multiSelection.size() + " points/markers selected in click order",
         x + 8,
@@ -1328,7 +1328,7 @@ public final class IceRoadPlannerOverlay {
         W - 16,
         copiedRoute == null ? "Paste (clipboard empty)" : "Paste into selected branch");
     if (!extractionMessage.isEmpty())
-      g.text(Minecraft.getInstance().font, extractionMessage, x + 8, y + 190, 0xFFFF7777, false);
+      g.drawString(Minecraft.getInstance().font, extractionMessage, x + 8, y + 190, 0xFFFF7777, false);
   }
 
   private static boolean clickMultiSelectionPanel(double mx, double my, int sw) {
@@ -1996,7 +1996,7 @@ public final class IceRoadPlannerOverlay {
     return name;
   }
 
-  private static void segmentPanel(GuiGraphicsExtractor g, int sw) {
+  private static void segmentPanel(GuiGraphics g, int sw) {
     if (!validSelectedSegment()) return;
     drawSelectedSegmentHandles(g);
     Branch b = draft().branches.get(selectedSegmentBranch);
@@ -2004,15 +2004,15 @@ public final class IceRoadPlannerOverlay {
     int x = markerPanelX(sw), y = 8;
     boolean link = selectedSegment < 0;
     g.fill(x, y, x + W, y + (link ? 140 : 280), 0xF20A1419);
-    g.text(Minecraft.getInstance().font, "Selected line segment", x + 8, y + 8, 0xFFFFFFFF, false);
-    g.text(
+    g.drawString(Minecraft.getInstance().font, "Selected line segment", x + 8, y + 8, 0xFFFFFFFF, false);
+    g.drawString(
         Minecraft.getInstance().font,
         b.name + (link ? " connection" : " #" + (selectedSegment + 1)),
         x + 8,
         y + 24,
         0xFFFFFF55,
         false);
-    g.text(
+    g.drawString(
         Minecraft.getInstance().font,
         number(a.x) + ", " + number(a.z) + " to " + number(c.x) + ", " + number(c.z),
         x + 8,
@@ -2020,7 +2020,7 @@ public final class IceRoadPlannerOverlay {
         0xFFB9DDEB,
         false);
     if (!link && segmentEditing)
-      g.text(
+      g.drawString(
           Minecraft.getInstance().font,
           "Drag either endpoint to resize",
           x + 8,
@@ -2046,7 +2046,7 @@ public final class IceRoadPlannerOverlay {
     if (segmentMembershipPanel) drawSegmentMembershipPanel(g, sw, a, c);
   }
 
-  private static void drawSelectedSegmentHandles(GuiGraphicsExtractor g) {
+  private static void drawSelectedSegmentHandles(GuiGraphics g) {
     for (SegmentHit hit : segmentHits)
       if (hit.line == draft().activeLine
           && hit.branch == selectedSegmentBranch
@@ -2058,13 +2058,13 @@ public final class IceRoadPlannerOverlay {
       }
   }
 
-  private static void drawHandle(GuiGraphicsExtractor g, int x, int y, int color) {
+  private static void drawHandle(GuiGraphics g, int x, int y, int color) {
     g.fill(x - 4, y - 4, x + 5, y + 5, 0xFF071014);
     g.fill(x - 2, y - 2, x + 3, y + 3, color);
   }
 
   private static void drawPlannerPoints(
-      GuiGraphicsExtractor g,
+      GuiGraphics g,
       List<DragHit> hits,
       int sw,
       int sh,
@@ -2187,7 +2187,7 @@ public final class IceRoadPlannerOverlay {
   }
 
   private static void placePointLabel(
-      GuiGraphicsExtractor g,
+      GuiGraphics g,
       int x,
       int y,
       String text,
@@ -2212,7 +2212,7 @@ public final class IceRoadPlannerOverlay {
         if (!collision) {
           occupied.add(new int[] {left, top, right, bottom});
           g.fill(left, top, right, bottom, 0xCC071014);
-          g.text(Minecraft.getInstance().font, text, left + 2, top + 2, color, false);
+          g.drawString(Minecraft.getInstance().font, text, left + 2, top + 2, color, false);
           return;
         }
       }
@@ -2222,19 +2222,19 @@ public final class IceRoadPlannerOverlay {
     return l1 < r2 && r1 > l2 && t1 < b2 && b1 > t2;
   }
 
-  private static void pointPanel(GuiGraphicsExtractor g, int sw) {
+  private static void pointPanel(GuiGraphics g, int sw) {
     if (!validSelectedPoint()) return;
     Point p = selectedPointValue();
     int x = markerPanelX(sw), y = 8;
     g.fill(x, y, x + W, y + 208, 0xF20A1419);
-    g.text(
+    g.drawString(
         Minecraft.getInstance().font,
         pointConnecting ? "Connection source selected" : "Selected line point",
         x + 8,
         y + 8,
         pointConnecting ? 0xFF77FFAA : 0xFFFFFFFF,
         false);
-    g.text(
+    g.drawString(
         Minecraft.getInstance().font,
         branch().name
             + " · XYZ "
@@ -2248,7 +2248,7 @@ public final class IceRoadPlannerOverlay {
         0xFFFFFF55,
         false);
     if (pointConnecting)
-      g.text(
+      g.drawString(
           Minecraft.getInstance().font,
           "Click an existing or new point",
           x + 8,
@@ -2269,13 +2269,13 @@ public final class IceRoadPlannerOverlay {
     if (pointMembershipPanel) drawPointMembershipPanel(g, sw, p);
   }
 
-  private static void branchPanel(GuiGraphicsExtractor g, int sw) {
+  private static void branchPanel(GuiGraphics g, int sw) {
     if (!branchPanel) return;
     Branch b = branch();
     int x = markerPanelX(sw), y = 8;
     g.fill(x, y, x + W, y + BRANCH_PANEL_H, 0xF20A1419);
-    g.text(Minecraft.getInstance().font, "Selected branch", x + 8, y + 8, 0xFFFFFFFF, false);
-    g.text(
+    g.drawString(Minecraft.getInstance().font, "Selected branch", x + 8, y + 8, 0xFFFFFFFF, false);
+    g.drawString(
         Minecraft.getInstance().font,
         draft().line + " · " + b.name,
         x + 8,
@@ -2301,11 +2301,11 @@ public final class IceRoadPlannerOverlay {
     button(g, x + 8, y + 262, W - 16, "Close");
   }
 
-  private static void namePanel(GuiGraphicsExtractor g, int sw) {
+  private static void namePanel(GuiGraphics g, int sw) {
     if (nameEditing == 0) return;
     int x = markerPanelX(sw), y = 148;
     g.fill(x, y, x + W, y + 78, 0xFA0A1419);
-    g.text(Minecraft.getInstance().font, "Rename " + nameKind(), x + 8, y + 8, 0xFFFFFFFF, false);
+    g.drawString(Minecraft.getInstance().font, "Rename " + nameKind(), x + 8, y + 8, 0xFFFFFFFF, false);
     field(g, x + 8, y + 26, W - 16, "Name", nameInput, true);
     button(g, x + 8, y + 50, (W - 20) / 2, "Apply");
     button(g, x + 12 + (W - 20) / 2, y + 50, (W - 20) / 2, "Cancel");
@@ -2325,11 +2325,11 @@ public final class IceRoadPlannerOverlay {
     return markerPanelX(sw);
   }
 
-  private static void colorPickerPanel(GuiGraphicsExtractor g, int sw) {
+  private static void colorPickerPanel(GuiGraphics g, int sw) {
     if (!colorPicker) return;
     int x = colorPickerX(sw), y = 278, fieldX = x + 8, fieldY = y + 28;
     g.fill(x, y, x + W, y + 184, 0xFA0A1419);
-    g.text(Minecraft.getInstance().font, "Line color", x + 8, y + 8, 0xFFFFFFFF, false);
+    g.drawString(Minecraft.getInstance().font, "Line color", x + 8, y + 8, 0xFFFFFFFF, false);
     for (int py = 0; py < 96; py += 4)
       for (int px = 0; px < 128; px += 4) {
         float saturation = (px + 2) / 128f, brightness = 1f - (py + 2) / 96f;
@@ -2356,7 +2356,7 @@ public final class IceRoadPlannerOverlay {
       int sx = x + 8 + i * 21;
       g.fill(sx, y + 132, sx + 18, y + 150, lineArgb(COMMON_LINE_COLORS[i], 0xFF));
     }
-    g.text(
+    g.drawString(
         Minecraft.getInstance().font,
         "#" + normalizeStoredColor(draft().color),
         x + 8,
@@ -2476,7 +2476,7 @@ public final class IceRoadPlannerOverlay {
     return line.branches.get(membership.branch).stationIds.contains(id);
   }
 
-  private static void drawMarkerMembershipPanel(GuiGraphicsExtractor g, int sw, Station marker) {
+  private static void drawMarkerMembershipPanel(GuiGraphics g, int sw, Station marker) {
     Draft d = draft();
     List<MarkerMembership> memberships = markerMemberships(d);
     int rows = Math.min(10, Math.max(1, memberships.size()));
@@ -2485,8 +2485,8 @@ public final class IceRoadPlannerOverlay {
     int from = markerMembershipPage * rows, count = Math.min(rows, memberships.size() - from);
     int x = Math.max(PROJECT_X + PROJECT_W + 8, markerPanelX(sw) - W - 4), y = 8;
     g.fill(x, y, x + W, y + 36 + (count + 1) * 20, 0xFA0A1419);
-    g.text(Minecraft.getInstance().font, "Marker memberships", x + 8, y + 8, 0xFFFFFFFF, false);
-    g.text(Minecraft.getInstance().font, marker.name, x + 8, y + 22, 0xFFFFD36A, false);
+    g.drawString(Minecraft.getInstance().font, "Marker memberships", x + 8, y + 8, 0xFFFFFFFF, false);
+    g.drawString(Minecraft.getInstance().font, marker.name, x + 8, y + 22, 0xFFFFD36A, false);
     for (int i = 0; i < count; i++) {
       MarkerMembership membership = memberships.get(from + i);
       button(
@@ -2565,7 +2565,7 @@ public final class IceRoadPlannerOverlay {
     return d.lines.get(membership.line).branches.get(membership.branch).vertices.contains(point);
   }
 
-  private static void drawPointMembershipPanel(GuiGraphicsExtractor g, int sw, Point point) {
+  private static void drawPointMembershipPanel(GuiGraphics g, int sw, Point point) {
     Draft d = draft();
     List<MarkerMembership> memberships = markerMemberships(d);
     int rows = Math.min(10, Math.max(1, memberships.size()));
@@ -2574,8 +2574,8 @@ public final class IceRoadPlannerOverlay {
     int from = pointMembershipPage * rows, count = Math.min(rows, memberships.size() - from);
     int x = Math.max(PROJECT_X + PROJECT_W + 8, markerPanelX(sw) - W - 4), y = 8;
     g.fill(x, y, x + W, y + 36 + (count + 1) * 20, 0xFA0A1419);
-    g.text(Minecraft.getInstance().font, "Vertex memberships", x + 8, y + 8, 0xFFFFFFFF, false);
-    g.text(
+    g.drawString(Minecraft.getInstance().font, "Vertex memberships", x + 8, y + 8, 0xFFFFFFFF, false);
+    g.drawString(
         Minecraft.getInstance().font,
         "XYZ " + number(point.x) + ", " + number(pointY(point, branch())) + ", " + number(point.z),
         x + 8, y + 22, 0xFFFFD36A, false);
@@ -2624,7 +2624,7 @@ public final class IceRoadPlannerOverlay {
   }
 
   private static void drawSegmentMembershipPanel(
-      GuiGraphicsExtractor g, int sw, Point a, Point b) {
+      GuiGraphics g, int sw, Point a, Point b) {
     Draft d = draft();
     List<MarkerMembership> memberships = markerMemberships(d);
     int rows = Math.min(10, Math.max(1, memberships.size()));
@@ -2633,8 +2633,8 @@ public final class IceRoadPlannerOverlay {
     int from = segmentMembershipPage * rows, count = Math.min(rows, memberships.size() - from);
     int x = Math.max(PROJECT_X + PROJECT_W + 8, markerPanelX(sw) - W - 4), y = 8;
     g.fill(x, y, x + W, y + 36 + (count + 1) * 20, 0xFA0A1419);
-    g.text(Minecraft.getInstance().font, "Segment memberships", x + 8, y + 8, 0xFFFFFFFF, false);
-    g.text(
+    g.drawString(Minecraft.getInstance().font, "Segment memberships", x + 8, y + 8, 0xFFFFFFFF, false);
+    g.drawString(
         Minecraft.getInstance().font,
         number(a.x) + ", " + number(a.z) + " to " + number(b.x) + ", " + number(b.z),
         x + 8, y + 22, 0xFFFFD36A, false);
@@ -4774,7 +4774,7 @@ public final class IceRoadPlannerOverlay {
   }
 
   private static void line(
-      GuiGraphicsExtractor g, int x1, int y1, int x2, int y2, int color, int width) {
+      GuiGraphics g, int x1, int y1, int x2, int y2, int color, int width) {
     double dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy);
     if (len < 1) return;
     var m = g.pose();
@@ -4793,14 +4793,14 @@ public final class IceRoadPlannerOverlay {
     feedbackUntil = System.currentTimeMillis() + 2_000;
   }
 
-  private static void editorChrome(GuiGraphicsExtractor g, int sw, int sh) {
+  private static void editorChrome(GuiGraphics g, int sw, int sh) {
     Draft d = draft();
     int right = sw - 8;
     g.fill(PROJECT_X, 4, right, 4 + HEADER_H, 0xF20A1419);
-    g.text(
+    g.drawString(
         Minecraft.getInstance().font, "ICE HIGHWAY EDITOR", PROJECT_X + 8, 13, 0xFFFFFFFF, false);
     button(g, PROJECT_X + 150, 9, 150, d.name + " v");
-    g.text(
+    g.drawString(
         Minecraft.getInstance().font,
         editorState.dirty() ? "Saving..." : "Saved",
         PROJECT_X + 310,
@@ -4811,9 +4811,9 @@ public final class IceRoadPlannerOverlay {
     button(g, right - 96, 9, 88, "Export v");
     int bottom = sh - 34;
     g.fill(PROJECT_X, 36, PROJECT_X + PROJECT_W, bottom - 6, 0xE80A1419);
-    g.text(Minecraft.getInstance().font, "NETWORK", PROJECT_X + 8, 44, 0xFF8FD9FF, false);
+    g.drawString(Minecraft.getInstance().font, "NETWORK", PROJECT_X + 8, 44, 0xFF8FD9FF, false);
     button(g, PROJECT_X + 8, 60, PROJECT_W - 16, d.name + " v");
-    g.text(
+    g.drawString(
         Minecraft.getInstance().font,
         Minecraft.getInstance().font.plainSubstrByWidth("v " + d.company, PROJECT_W - 78),
         PROJECT_X + 10, 86, 0xFFFFFFFF, false);
@@ -4862,7 +4862,7 @@ public final class IceRoadPlannerOverlay {
     for (EditorTool candidate : EditorTool.values()) {
       boolean selected = editorState.tool() == candidate;
       g.fill(tx, bottom + 4, tx + TOOL_W - 4, sh - 10, selected ? 0xFF315E70 : 0xFF20343D);
-      g.centeredText(
+      g.drawCenteredString(
           Minecraft.getInstance().font,
           candidate.label(),
           tx + (TOOL_W - 4) / 2,
@@ -4870,7 +4870,7 @@ public final class IceRoadPlannerOverlay {
           selected ? 0xFFFFFF77 : 0xFFFFFFFF);
       tx += TOOL_W;
     }
-    g.text(Minecraft.getInstance().font, "Snap v", tx + 6, bottom + 10, 0xFF8FD9FF, false);
+    g.drawString(Minecraft.getInstance().font, "Snap v", tx + 6, bottom + 10, 0xFF8FD9FF, false);
     drawEditorMenus(g, sw, sh);
   }
 
@@ -4901,7 +4901,7 @@ public final class IceRoadPlannerOverlay {
     return rows;
   }
 
-  private static void drawEditorMenus(GuiGraphicsExtractor g, int sw, int sh) {
+  private static void drawEditorMenus(GuiGraphics g, int sw, int sh) {
     int bottom = sh - 34;
     if (markerListDropdown) {
       int rows = Math.max(1, Math.min(12, (sh - 100) / 19)),
@@ -4986,9 +4986,9 @@ public final class IceRoadPlannerOverlay {
     if (validationPanel) {
       int x = Math.max(PROJECT_X + PROJECT_W + 8, sw / 2 - 150), y = 38;
       g.fill(x, y, x + 300, y + 42 + validationMessages.size() * 14, 0xFA0A1419);
-      g.text(Minecraft.getInstance().font, "VALIDATION", x + 8, y + 8, 0xFFFFFFFF, false);
+      g.drawString(Minecraft.getInstance().font, "VALIDATION", x + 8, y + 8, 0xFFFFFFFF, false);
       for (int i = 0; i < validationMessages.size(); i++)
-        g.text(
+        g.drawString(
             Minecraft.getInstance().font,
             validationMessages.get(i),
             x + 8,
