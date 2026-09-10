@@ -179,5 +179,8 @@
   "earthmcroutefinder.ice_station.type.elevator": "エレベーター",
   "earthmcroutefinder.ice_station.status.unknown": "不明",
   "earthmcroutefinder.ice_station.status.accessible": "通行可能",
-  "earthmcroutefinder.ice_station.status.blocked": "通行不可"
+  "earthmcroutefinder.ice_station.status.blocked": "通行不可",
+  "earthmcroutefinder.controls.ice_roads": "氷の道",
+  "earthmcroutefinder.controls.planner": "ルート計画",
+  "earthmcroutefinder.controls.settings": "ルート設定"
 }

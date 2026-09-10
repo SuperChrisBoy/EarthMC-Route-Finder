@@ -15,7 +15,7 @@ public final class PlannerUiPreview extends Screen {
         for(int py=0;py<height;py+=32)g.fill(0,py,width,py+1,0xFF416064);
         IceRoadPlannerOverlay.render(g,0,0,.5,width,height);
         IceRoadPlannerOverlay.renderUi(g,width,height);
-        RouteToolbar.render(g,width);
+
         g.text(font,Component.translatable("earthmcroutefinder.common.refresh"),width-90,height-65,0xFF8BE5BB,false);
     }
 }

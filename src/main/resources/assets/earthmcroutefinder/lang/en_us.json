@@ -185,5 +185,8 @@
   "earthmcroutefinder.ice_station.type.elevator": "Elevator",
   "earthmcroutefinder.ice_station.status.unknown": "Unknown",
   "earthmcroutefinder.ice_station.status.accessible": "Accessible",
-  "earthmcroutefinder.ice_station.status.blocked": "Blocked"
+  "earthmcroutefinder.ice_station.status.blocked": "Blocked",
+  "earthmcroutefinder.controls.ice_roads": "Ice roads",
+  "earthmcroutefinder.controls.planner": "Road planner",
+  "earthmcroutefinder.controls.settings": "Route settings"
 }
