@@ -15,6 +15,7 @@ public final class TeleportViewerSettingsScreen extends Screen {
         primary=new EditBox(font,x,y,100,20,Component.translatable("earthmcroutefinder.teleport.primary_town"));primary.setValue(cfg.teleportPrimaryHomeTown);primary.setMaxLength(64);addRenderableWidget(primary);
         addRenderableWidget(Button.builder(Component.translatable("earthmcroutefinder.teleport.save_primary"),b->{String v=primary.getValue().trim();if(v.isBlank()||RouteFinderMod.currentTownSnapshot().stream().anyMatch(t->t.name().equalsIgnoreCase(v))){cfg.teleportPrimaryHomeTown=v;cfg.save();status=Component.translatable("earthmcroutefinder.teleport.saved").getString();}else status=Component.translatable("earthmcroutefinder.teleport.invalid_town").getString();}).bounds(x+104,y,176,20).build());y=96;
         addRenderableWidget(Button.builder(Component.literal("Ice road settings"),b->minecraft.setScreen(new IceRoadSettingsScreen(this))).bounds(Math.max(4,width-130),4,126,20).build());
+        addRenderableWidget(Button.builder(Component.literal("Accessibility saves"),b->minecraft.setScreen(new AccessibilitySavesScreen(this))).bounds(4,4,154,20).build());
         y=toggle(left,x,y,"earthmcroutefinder.teleport.settings.advanced_enabled",cfg.teleportAdvancedEnabled,v->{cfg.teleportAdvancedEnabled=v;if(!v)cfg.teleportDefaultAdvanced=false;});
         y=commandMode(x,y);
         y=toggle(left,x,y,"earthmcroutefinder.teleport.settings.town_spawns",cfg.teleportShowTownSpawns,v->cfg.teleportShowTownSpawns=v);

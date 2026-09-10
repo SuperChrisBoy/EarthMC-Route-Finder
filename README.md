@@ -27,9 +27,11 @@ Open Xaero's World Map on EarthMC. The left-side button column provides **Ice ro
 - `/routefinder planner` toggles the planner; open the world map to edit.
 - `/routefinder target <x> <z>` selects a route destination; open the world map to view results.
 
+Teleport Viewer settings → **Accessibility saves** lists named town/nation spawn accessibility snapshots. Save current reports under a new name, load a snapshot immediately, or open the save folder. Loading replaces only physical spawn reports; it does not change teleport permissions or other settings. Saves are portable JSON files in `EarthMC Accessibility Saves/` directly inside the game directory. Refresh the list after adding files externally. The same screen can open the planner folder.
+
 Mod Menu also opens Route Finder settings. Ice road settings include width, marker size, station filtering and double-click targeting.
 
-Settings: `config/earthmcroutefinder.json`. Planner files: `earthmcroutefinder/ice-highway-planner/` inside the game directory. Existing development-mod drafts can be imported with the planner's clipboard JSON import; the original files are not migrated or modified automatically.
+Settings: `config/earthmcroutefinder.json`. Planner files: `EarthMC Ice Road Planner/` directly inside the game directory (the draft library is in that folder). Existing nested planner files are copied there automatically; originals are retained. Existing development-mod drafts can be imported with the planner's clipboard JSON import; the original files are not migrated or modified automatically.
 
 ## Build and validation
 

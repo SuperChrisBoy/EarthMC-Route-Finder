@@ -4471,7 +4471,7 @@ public final class IceRoadPlannerOverlay {
   }
 
   private static Path libraryPath() {
-    return plannerRoot().resolve("drafts").resolve("ice-highway-drafts.json");
+    return plannerRoot().resolve("ice-highway-drafts.json");
   }
 
   private static Path legacyLibraryPath() {
@@ -4481,9 +4481,8 @@ public final class IceRoadPlannerOverlay {
   }
 
   private static Path plannerRoot() {
-    Minecraft mc = Minecraft.getInstance();
-    Path game = mc == null ? FabricLoader.getInstance().getGameDir() : mc.gameDirectory.toPath();
-    return game.resolve("earthmcroutefinder").resolve("ice-highway-planner").toAbsolutePath();
+    try { return net.earthmc.routefinder.storage.SaveFolders.planner(); }
+    catch (IOException e) { throw new java.io.UncheckedIOException("Cannot prepare planner save folder", e); }
   }
 
   private static Path exportPath() {
