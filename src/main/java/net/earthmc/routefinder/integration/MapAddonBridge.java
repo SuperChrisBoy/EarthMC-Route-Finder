@@ -26,6 +26,10 @@ public final class MapAddonBridge {
             return null;
         }
     }
+    public static Object emptySearchResult(){
+        try{return Class.forName("net.townymap.gui.TownSearchOverlay$ClickResult").getMethod("none").invoke(null);}
+        catch(ReflectiveOperationException e){throw new IllegalStateException("Base search integration changed",e);}
+    }
     public static int option(String name){
         Object config=call("getConfig");if(config==null)return -1;
         try{return config.getClass().getField(name).getInt(config);}catch(ReflectiveOperationException e){return -1;}
