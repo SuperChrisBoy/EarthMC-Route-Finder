@@ -20,7 +20,7 @@ Use one Route Finder JAR matching your game version. This project does not repla
 
 ## Use
 
-Open Xaero's World Map on EarthMC. The top toolbar provides **Ice roads**, **Road planner**, and **Route settings**. Double-click a map location to open Teleport Viewer.
+Open Xaero's World Map on EarthMC. The left-side button column provides **Ice roads** and **Road planner** below Counter. Click Road planner again to exit. Open **Settings → Route settings** for route and teleport options. Double-click a map location to open Teleport Viewer.
 
 - `/routefinder` opens settings.
 - `/routefinder roads` toggles ice road overlays.
