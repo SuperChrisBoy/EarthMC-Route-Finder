@@ -31,6 +31,10 @@ Route Finder settings → **Accessibility saves** lists named town/nation spawn 
 
 Viewer and planner panels automatically scale to the available window size. Viewer results scroll in complete rows above the action footer.
 
+Closing Route Finder retains the target location, results, selected route, and scroll position for reopening during the same game session. Double-clicking a new map target starts a new search.
+
+In the ice editor, left-click an existing network line or station to edit a copy in the current draft. The source network remains unchanged. Stations and points on other draft lines are selectable directly, without first choosing their line in the sidebar.
+
 The planner's **Y: unset** button chooses the height used by subsequent placements; the first map placement prompts if no height has been chosen. **Add XYZ** places a point or marker from typed coordinates. Select an existing point or marker, then **Edit X/Y/Z** to edit its prefilled coordinates. Exact input preserves fractional coordinates; map clicks retain snapping.
 
 Teleport preferences are directly editable under the base mod's **Settings → Route settings** category, with its search and scrolling.

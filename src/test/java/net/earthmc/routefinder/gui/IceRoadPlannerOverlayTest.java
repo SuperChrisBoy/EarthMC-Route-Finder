@@ -15,6 +15,22 @@ import org.junit.jupiter.api.Test;
 
 class IceRoadPlannerOverlayTest {
   @Test
+  void editingExistingNetworkCopiesGeometryAndRemapsStationIdsWithoutDuplicatingLines() {
+    JsonObject source = JsonParser.parseString("""
+        {"stations":[{"id":0,"name":"Existing","type":"station","x":0,"z":0}],
+         "lines":{"Network":{"Road":{"y":75,"branches":{"Main":{
+           "vertices":[[0,0],[100,100]],"stations":[0]}}}}}}
+        """).getAsJsonObject();
+    JsonObject original = source.deepCopy();
+    JsonObject result = IceRoadPlannerOverlay.importNetworkLineForTest(source, "Network", "Road");
+    assertEquals(2, result.get("lines").getAsInt());
+    assertEquals(1, result.get("stationId").getAsInt());
+    assertEquals(1, result.get("memberId").getAsInt());
+    assertEquals("Network", result.get("sourceCompany").getAsString());
+    assertEquals("Road", result.get("sourceLine").getAsString());
+    assertEquals(original, source);
+  }
+  @Test
   void continuousDrawingAdvancesThroughNewAndExistingPointsWithoutBreakingOriginalRoute() {
     for (int source = 0; source < 3; source++)
       assertArrayEquals(new boolean[] {true, true, true, true, true, true, true, true},

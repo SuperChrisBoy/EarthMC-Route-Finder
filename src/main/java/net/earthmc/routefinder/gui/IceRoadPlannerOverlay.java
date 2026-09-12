@@ -8,6 +8,7 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.earthmc.routefinder.RouteFinderMod;
+import net.earthmc.routefinder.ice.IceRoadNetwork;
 import net.earthmc.routefinder.iceeditor.AutosaveController;
 import net.earthmc.routefinder.iceeditor.EditorState;
 import net.earthmc.routefinder.iceeditor.EditorTool;
@@ -151,7 +152,11 @@ public final class IceRoadPlannerOverlay {
 
   private record Station(int id, String name, String type, double x, double y, double z) {}
 
-  private record DragHit(int station, int branch, int vertex, double x, double y) {}
+  private record DragHit(int line, int station, int branch, int vertex, double x, double y) {
+    DragHit(int station, int branch, int vertex, double x, double y) {
+      this(-1, station, branch, vertex, x, y);
+    }
+  }
 
   private record SegmentHit(
       int line, int branch, int segment, double ax, double ay, double bx, double by) {}
@@ -196,6 +201,7 @@ public final class IceRoadPlannerOverlay {
   }
 
   private static final class LineData {
+    String sourceCompany, sourceLine;
     String company = "My Highway", line = "Planned Line", prefix = "", code = "", color = "ff55dd";
     boolean visible = true;
     List<Station> stations = new ArrayList<>();
@@ -327,7 +333,8 @@ public final class IceRoadPlannerOverlay {
     Draft d = draft();
     storeActiveLine(d);
     List<SegmentHit> segments = new ArrayList<>();
-    drawOtherLines(g, d, camX, camZ, scale, sw, sh, segments);
+    List<DragHit> otherHits = new ArrayList<>();
+    drawOtherLines(g, d, camX, camZ, scale, sw, sh, segments, otherHits);
     boolean activeLineVisible = d.lines.get(d.activeLine).visible;
     boolean closeLod = export || scale >= .75;
     boolean mediumLod = export || scale >= .25;
@@ -401,7 +408,8 @@ public final class IceRoadPlannerOverlay {
     if (!export) for (SegmentHit hit : segments)
       if (selectedEdges.contains(new SelectedEdge(hit.line, hit.branch, hit.segment)))
         line(g, (int) hit.ax, (int) hit.ay, (int) hit.bx, (int) hit.by, 0xFFFFFF55, 4);
-    dragHits = List.copyOf(hits);
+    otherHits.addAll(hits);
+    dragHits = List.copyOf(otherHits);
     segmentHits = List.copyOf(segments);
   }
 
@@ -444,7 +452,7 @@ public final class IceRoadPlannerOverlay {
       double scale,
       int sw,
       int sh,
-      List<SegmentHit> segments) {
+      List<SegmentHit> segments, List<DragHit> hits) {
     for (int li = 0; li < d.lines.size(); li++) {
       if (li == d.activeLine) continue;
       LineData other = d.lines.get(li);
@@ -453,6 +461,12 @@ public final class IceRoadPlannerOverlay {
       for (int bi = 0; bi < other.branches.size(); bi++) {
         Branch branch = other.branches.get(bi);
         if (!branch.visible) continue;
+        for (int vi = 0; vi < branch.vertices.size(); vi++) {
+          Point p = branch.vertices.get(vi);
+          int px = sx(p.x, camX, scale, sw), py = sy(p.z, camZ, scale, sh);
+          hits.add(new DragHit(li, -1, bi, vi, px, py));
+          if (!RouteFinderMod.composingPlannerExport()) g.fill(px - 2, py - 2, px + 3, py + 3, color);
+        }
         for (int i = 1; i < branch.vertices.size(); i++) {
           if (branch.breaks.contains(i)) continue;
           Point a = branch.vertices.get(i - 1), b = branch.vertices.get(i);
@@ -486,6 +500,17 @@ public final class IceRoadPlannerOverlay {
               color,
               1);
         }
+      }
+      for (Station station : other.stations) {
+        boolean referenced = false, visible = false;
+        for (Branch b : other.branches) if (b.stationIds.contains(station.id)) {
+          referenced = true;
+          visible |= b.visible;
+        }
+        if (referenced && !visible) continue;
+        int px = sx(station.x, camX, scale, sw), py = sy(station.z, camZ, scale, sh);
+        hits.add(new DragHit(li, station.id, -1, -1, px, py));
+        IceRoadOverlay.drawStationSymbol(g, px, py, station.type, 14);
       }
     }
   }
@@ -927,6 +952,10 @@ public final class IceRoadPlannerOverlay {
       if (edge != null) { toggleEdge(edge); return true; }
     }
     if (hit != null) {
+      if (hit.line >= 0 && hit.line != draft().activeLine) {
+        clearMarkerSelection();
+        activateLine(draft(), hit.line);
+      }
       if (editorState.tool() == EditorTool.MULTI_SELECT) {
         toggleMultiSelection(hit);
         return true;
@@ -987,6 +1016,7 @@ public final class IceRoadPlannerOverlay {
       else if (editorState.tool() == EditorTool.REMOVE) removeSelectedSegment();
       return true;
     }
+    if (!newLinePending && !pointConnecting && selectNetworkAt(mx, my)) return true;
     if (editorState.tool() == EditorTool.SELECT) {
       clearMarkerSelection();
       multiSelection.clear();
@@ -1030,6 +1060,164 @@ public final class IceRoadPlannerOverlay {
 
   static boolean shouldFallbackToUiRelease(boolean handledOnPress) {
     return !handledOnPress;
+  }
+
+  /** A draft copy replaces its source geometry only while this editor is open. */
+  public static boolean hidesNetworkLine(String company, String name) {
+    if (!active) return false;
+    for (LineData line : draft().lines)
+      if (Objects.equals(company, line.sourceCompany) && Objects.equals(name, line.sourceLine)
+          || company.equals(line.company) && name.equals(line.line)) return true;
+    return false;
+  }
+
+  public static boolean hidesNetworkStation(IceRoadNetwork.Station station) {
+    if (!active) return false;
+    for (LineData line : draft().lines)
+      if ("$station".equals(line.sourceCompany) && Integer.toString(station.id()).equals(line.sourceLine)) return true;
+    if (station.lines().isEmpty()) return false;
+    for (String membership : station.lines()) {
+      boolean covered = false;
+      for (LineData line : draft().lines)
+        if (membership.equals(line.company + ": " + line.line)
+            || line.sourceCompany != null && membership.equals(line.sourceCompany + ": " + line.sourceLine)) {
+          covered = true;
+          break;
+        }
+      if (!covered) return false;
+    }
+    return true;
+  }
+
+  private static boolean selectNetworkAt(double mx, double my) {
+    if (!viewTransformValid || !RouteFinderMod.getConfig().iceRoadOverlayEnabled
+        || editorState.tool() == EditorTool.MEASURE) return false;
+    IceRoadNetwork network = IceRoadNetwork.get();
+    IceRoadNetwork.Station station = IceRoadOverlay.networkStationAt(mx, my);
+    String company = null, name = null;
+    JsonObject source = null;
+    if (station != null) {
+      source = network.editorSource();
+      for (JsonElement entry : source.getAsJsonArray("stations")) {
+        JsonObject raw = entry.getAsJsonObject();
+        if (raw.get("id").getAsInt() != station.id() || !raw.has("lines")) continue;
+        for (var membership : raw.getAsJsonObject("lines").entrySet())
+          for (String route : membership.getValue().getAsJsonObject().keySet())
+            if (company == null && !hidesNetworkLine(membership.getKey(), route)) {
+              company = membership.getKey();
+              name = route;
+            }
+        break;
+      }
+    }
+    if (company == null && station != null) {
+      checkpoint();
+      Draft d = draft();
+      LineData imported = new LineData();
+      imported.company = "Existing ice roads";
+      imported.line = uniqueLineName(d, station.name());
+      imported.sourceCompany = "$station";
+      imported.sourceLine = Integer.toString(station.id());
+      int id = nextId(d);
+      double height = 64;
+      for (JsonElement entry : source.getAsJsonArray("stations")) {
+        JsonObject raw = entry.getAsJsonObject();
+        if (raw.get("id").getAsInt() == station.id() && raw.has("y1")) height = raw.get("y1").getAsDouble();
+      }
+      imported.stations.add(new Station(id, station.name(), station.type(), station.x(), height, station.z()));
+      imported.branches.getFirst().stationIds.add(id);
+      d.lines.add(imported);
+      clearMarkerSelection();
+      bindLine(d, d.lines.size() - 1);
+      selectMarker(id);
+      saveLibraryQuiet();
+      return true;
+    }
+    if (company == null) {
+      double best = 100;
+      for (IceRoadNetwork.Segment edge : network.segments()) {
+        if (hidesNetworkLine(edge.company(), edge.line())) continue;
+        double distance = screenSegmentDistance2(mx, my,
+            sx(edge.x1(), viewCamX, viewScale, viewWidth), sy(edge.z1(), viewCamZ, viewScale, viewHeight),
+            sx(edge.x2(), viewCamX, viewScale, viewWidth), sy(edge.z2(), viewCamZ, viewScale, viewHeight));
+        if (distance <= best) { best = distance; company = edge.company(); name = edge.line(); }
+      }
+    }
+    if (company == null) return false;
+    if (source == null) source = network.editorSource();
+    Set<SelectedEdge> previous = new LinkedHashSet<>(selectedEdges);
+    checkpoint();
+    Draft d = draft();
+    LineData imported = importNetworkLine(d, source, company, name);
+    clearMarkerSelection();
+    bindLine(d, d.lines.indexOf(imported));
+    selectedEdges.addAll(previous);
+    if (station != null) {
+      for (Station marker : d.stations)
+        if (marker.x == station.x() && marker.z == station.z() && marker.name.equals(station.name())) {
+          selectMarker(marker.id);
+          saveLibraryQuiet();
+          notice("Editing a draft copy of " + name);
+          return true;
+        }
+    }
+    List<SegmentHit> candidates = new ArrayList<>();
+    for (int bi = 0; bi < d.branches.size(); bi++) {
+      Branch b = d.branches.get(bi);
+      for (int i = 1; i < b.vertices.size(); i++) if (!b.breaks.contains(i)) {
+        Point a = b.vertices.get(i - 1), z = b.vertices.get(i);
+        candidates.add(new SegmentHit(d.activeLine, bi, i - 1,
+            sx(a.x, viewCamX, viewScale, viewWidth), sy(a.z, viewCamZ, viewScale, viewHeight),
+            sx(z.x, viewCamX, viewScale, viewWidth), sy(z.z, viewCamZ, viewScale, viewHeight)));
+      }
+    }
+    SegmentHit hit = nearestSegment(candidates, mx, my, 100);
+    if (hit != null) {
+      if (editorState.tool() == EditorTool.MULTI_SELECT || additiveSelection()) toggleEdge(hit);
+      else selectSegment(hit, mx, my);
+    } else branchPanel = true;
+    saveLibraryQuiet();
+    notice("Editing a draft copy of " + name);
+    return true;
+  }
+
+  private static LineData importNetworkLine(Draft d, JsonObject source, String company, String name) {
+    storeActiveLine(d);
+    for (LineData line : d.lines)
+      if (company.equals(line.sourceCompany) && name.equals(line.sourceLine)) return line;
+    LineData line = parseLine(source, company, name,
+        source.getAsJsonObject("lines").getAsJsonObject(company).getAsJsonObject(name), null);
+    line.sourceCompany = company;
+    line.sourceLine = name;
+    Map<Integer, Integer> ids = new HashMap<>();
+    int next = nextId(d);
+    List<Station> remapped = new ArrayList<>();
+    for (Station station : line.stations) {
+      ids.put(station.id, next);
+      remapped.add(new Station(next++, station.name, station.type, station.x, station.y, station.z));
+    }
+    line.stations = remapped;
+    for (Branch branch : line.branches) {
+      branch.stationIds.removeIf(id -> !ids.containsKey(id));
+      branch.stationIds.replaceAll(ids::get);
+    }
+    d.lines.add(line);
+    return line;
+  }
+
+  static JsonObject importNetworkLineForTest(JsonObject source, String company, String name) {
+    Draft d = new Draft("Import test");
+    d.stations.add(new Station(0, "Local", "station", -100, 64, -100));
+    LineData imported = importNetworkLine(d, source, company, name);
+    importNetworkLine(d, source, company, name);
+    JsonObject result = new JsonObject();
+    result.addProperty("lines", d.lines.size());
+    result.addProperty("stationId", imported.stations.getFirst().id);
+    result.addProperty("memberId", imported.branches.getFirst().stationIds.getFirst());
+    result.addProperty("sourceCompany", imported.sourceCompany);
+    result.addProperty("sourceLine", imported.sourceLine);
+    imported.branches.getFirst().vertices.set(0, new Point(12345, 12345, 10));
+    return result;
   }
 
   private static void panel(GuiGraphicsExtractor g, int sw) {
@@ -4399,6 +4587,10 @@ public final class IceRoadPlannerOverlay {
         state.addProperty("line", line.line);
         state.addProperty("activeBranch", line.branch);
         state.addProperty("visible", line.visible);
+        if (line.sourceCompany != null) {
+          state.addProperty("sourceCompany", line.sourceCompany);
+          state.addProperty("sourceLine", line.sourceLine);
+        }
         for (Branch branch : line.branches) {
           ys.addProperty(branch.name, branch.y);
           branchVisibility.addProperty(branch.name, branch.visible);
@@ -4516,7 +4708,19 @@ public final class IceRoadPlannerOverlay {
         JsonObject state = null;
         if (root.has("plannerLineStates")) {
           JsonArray states = root.getAsJsonArray("plannerLineStates");
-          if (stateIndex < states.size()) state = states.get(stateIndex).getAsJsonObject();
+          for (JsonElement entry : states) {
+            JsonObject candidate = entry.getAsJsonObject();
+            if (candidate.has("company") && candidate.has("line")
+                && companyEntry.getKey().equals(candidate.get("company").getAsString())
+                && lineEntry.getKey().equals(candidate.get("line").getAsString())) {
+              state = candidate;
+              break;
+            }
+          }
+          if (state == null && stateIndex < states.size()) {
+            JsonObject legacy = states.get(stateIndex).getAsJsonObject();
+            if (!legacy.has("company") || !legacy.has("line")) state = legacy;
+          }
         }
         d.lines.add(
             parseLine(
@@ -4545,6 +4749,10 @@ public final class IceRoadPlannerOverlay {
     line.code = route.has("code") ? route.get("code").getAsString() : "";
     line.color = route.has("color") ? route.get("color").getAsString() : "ff55dd";
     line.visible = state == null || !state.has("visible") || state.get("visible").getAsBoolean();
+    if (state != null && state.has("sourceCompany") && state.has("sourceLine")) {
+      line.sourceCompany = state.get("sourceCompany").getAsString();
+      line.sourceLine = state.get("sourceLine").getAsString();
+    }
     line.branches.clear();
     JsonObject branchYs = state != null && state.has("branchYs") ? state.getAsJsonObject("branchYs") : null;
     JsonObject branchVisibility =

@@ -11,7 +11,7 @@ import java.util.*;
 /** Compact, draggable Route Finder drawn directly over Xaero's World Map. */
 public final class TeleportViewerOverlay {
     private static final int W=360,HEADER=25,ROW=96,VISIBLE=4;
-    private static boolean open,minimized,advanced,dragging,resultsCleared,advancedConfirmed;
+    private static boolean open,minimized,advanced,dragging,resultsCleared,advancedConfirmed,hasTarget;
     private static double targetX,targetZ,dragOffsetX,dragOffsetY;
     private static int selected,scroll;
     private static DestinationView destinationView=DestinationView.USABLE;
@@ -25,9 +25,9 @@ public final class TeleportViewerOverlay {
     private static String feedback="";private static long feedbackUntil;
 
     private TeleportViewerOverlay(){}
-    public static void show(double x,double z){if(open){minimized=false;return;}open(x,z);}
+    public static void show(double x,double z){if(open||hasTarget){open=true;minimized=false;return;}open(x,z);}
 
-    public static void open(double x,double z){targetX=x;targetZ=z;open=true;minimized=false;RouteFinderConfig cfg=RouteFinderMod.getConfig();advanced=cfg.teleportAdvancedEnabled&&cfg.teleportDefaultAdvanced;destinationView=DestinationView.USABLE;exitFilter=ExitFilter.EVERYTHING;selected=scroll=0;resultsCleared=false;advancedConfirmed=false;feedback="";currentPlan=null;currentRoutes=List.of();pendingRoutes=null;routeGeneration++;nextRoutePollAt=0;RouteFinderMod.refreshTeleportData(x,z);}
+    public static void open(double x,double z){hasTarget=true;targetX=x;targetZ=z;open=true;minimized=false;RouteFinderConfig cfg=RouteFinderMod.getConfig();advanced=cfg.teleportAdvancedEnabled&&cfg.teleportDefaultAdvanced;destinationView=DestinationView.USABLE;exitFilter=ExitFilter.EVERYTHING;selected=scroll=0;resultsCleared=false;advancedConfirmed=false;feedback="";currentPlan=null;currentRoutes=List.of();pendingRoutes=null;routeGeneration++;nextRoutePollAt=0;RouteFinderMod.refreshTeleportData(x,z);}
     public static void accessibilityLoaded(){
         routeGeneration++;pendingRoutes=null;currentPlan=null;currentRoutes=List.of();
         selected=scroll=0;nextRoutePollAt=0;resultsCleared=false;
@@ -38,7 +38,7 @@ public final class TeleportViewerOverlay {
     /** Immutable snapshot consumed by the HUD thread; absent when the viewer has no active result. */
     public static Optional<MinimapRoute> minimapRoute(){TeleportRoute route=selectedRoute();if(!open||resultsCleared||route==null)return Optional.empty();return Optional.of(new MinimapRoute(route.destination().x(),route.destination().z(),targetX,targetZ,route.walkingDistance(),net.earthmc.routefinder.ice.IceRoadNetwork.tripFor(route)));}
     public static int panelWidth(){return W;}
-    public static void close(){open=false;minimized=false;dragging=false;currentRoutes=List.of();}
+    public static void close(){if(open)hasTarget=true;open=false;minimized=false;dragging=false;}
 
     private static OverlayViewport viewport=OverlayViewport.viewer(1150,650);
     private static int visibleRows=3;

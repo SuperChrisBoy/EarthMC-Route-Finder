@@ -9,6 +9,25 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class TeleportViewerOverlayTest {
+    @Test void closingAndReopeningRemembersLocationResultsAndSelection() throws Exception {
+        var values=new java.util.LinkedHashMap<String,Object>();
+        for(String name:List.of("open","hasTarget","minimized","targetX","targetZ","currentRoutes","selected","scroll","resultsCleared","dragging")){
+            var field=TeleportViewerOverlay.class.getDeclaredField(name);field.setAccessible(true);values.put(name,field.get(null));
+        }
+        try{
+            List<TeleportRoute> routes=List.of(route("First",TeleportDestination.Type.TOWN_SPAWN,TeleportDestination.PhysicalAccess.UNKNOWN),
+                route("Selected",TeleportDestination.Type.TOWN_SPAWN,TeleportDestination.PhysicalAccess.ACCESSIBLE));
+            var setup=new java.util.HashMap<String,Object>();
+            setup.put("open",true);setup.put("hasTarget",true);setup.put("targetX",123.5);setup.put("targetZ",-456.5);
+            setup.put("currentRoutes",routes);setup.put("selected",1);setup.put("scroll",1);setup.put("resultsCleared",false);
+            for(var entry:setup.entrySet()){var field=TeleportViewerOverlay.class.getDeclaredField(entry.getKey());field.setAccessible(true);field.set(null,entry.getValue());}
+            TeleportViewerOverlay.close();
+            assertEquals(false,TeleportViewerOverlay.open());
+            TeleportViewerOverlay.show(9999,9999);
+            assertEquals(true,TeleportViewerOverlay.open());
+            for(var entry:setup.entrySet()){var field=TeleportViewerOverlay.class.getDeclaredField(entry.getKey());field.setAccessible(true);assertEquals(entry.getValue(),field.get(null),entry.getKey());}
+        }finally{for(var entry:values.entrySet()){var field=TeleportViewerOverlay.class.getDeclaredField(entry.getKey());field.setAccessible(true);field.set(null,entry.getValue());}}
+    }
     @Test void blockedTownAndNationSpawnsAreAlwaysDisplayed() {
         TeleportRoute open=route("Open",TeleportDestination.Type.TOWN_SPAWN,TeleportDestination.PhysicalAccess.UNKNOWN);
         TeleportRoute blockedTown=route("BlockedTown",TeleportDestination.Type.TOWN_SPAWN,TeleportDestination.PhysicalAccess.OBSTRUCTED);

@@ -76,12 +76,58 @@ public final class UiWorkflowSmoke {
             if(vertices.size()!=5)throw new IllegalStateException("Continuous drawing lost points");
             call(null,type,"cancelPointConnection",new Class[]{});
             if(Boolean.TRUE.equals(field(null,type,"pointConnecting")))throw new IllegalStateException("Finish drawing ignored");
+            verifyNetworkClicks(mc, type);
         }finally{
             if(IceRoadPlannerOverlay.active()!=wasActive)IceRoadPlannerOverlay.toggle();
             drafts.clear();drafts.addAll(original);set(type,"draftIndex",oldIndex);set(type,"placementY",oldY);set(type,"tool",oldTool);
             call(null,type,"clearMarkerSelection",new Class[]{});
             call(null,type,"saveLibraryQuiet",new Class[]{});
             mc.gui.setScreen(parent);
+        }
+    }
+    @SuppressWarnings({"rawtypes","unchecked"})
+    private static void verifyNetworkClicks(Minecraft mc, Class<?> planner) throws ReflectiveOperationException {
+        var cfg=RouteFinderMod.getConfig();boolean enabled=cfg.iceRoadOverlayEnabled;
+        try{
+            cfg.iceRoadOverlayEnabled=true;
+            call(null,planner,"activateTool",new Class[]{net.earthmc.routefinder.iceeditor.EditorTool.class},net.earthmc.routefinder.iceeditor.EditorTool.SELECT);
+            call(null,planner,"clearMarkerSelection",new Class[]{});
+            var network=net.earthmc.routefinder.ice.IceRoadNetwork.get();
+            var station=network.stations().stream().filter(s->!s.lines().isEmpty()).findFirst().orElseThrow();
+            int w=mc.getWindow().getGuiScaledWidth(),h=mc.getWindow().getGuiScaledHeight();
+            double x=w/2.0,y=h/2.0;
+            set(planner,"viewWidth",w);set(planner,"viewHeight",h);set(planner,"viewScale",1.0);
+            set(planner,"viewCamX",station.x());set(planner,"viewCamZ",station.z());set(planner,"viewTransformValid",true);
+            set(planner,"dragHits",List.of());set(planner,"segmentHits",List.of());
+            Class<?> hitType=Class.forName(IceRoadOverlay.class.getName()+"$Hit");
+            var hit=hitType.getDeclaredConstructor(station.getClass(),double.class,double.class);hit.setAccessible(true);
+            set(IceRoadOverlay.class,"hits",List.of(hit.newInstance(station,x,y)));
+            if(!IceRoadPlannerOverlay.click(x,y,station.x(),station.z(),w)||(int)field(null,planner,"selectedMarker")<0)
+                throw new IllegalStateException("Existing network station was not selected");
+            int marker=(int)field(null,planner,"selectedMarker");
+            Object draft=call(null,planner,"draft",new Class[]{});
+            int line=(int)field(draft,draft.getClass(),"activeLine");
+            call(null,planner,"clearMarkerSelection",new Class[]{});
+            call(null,planner,"bindLine",new Class[]{draft.getClass(),int.class},draft,0);
+            Class<?> draftHitType=Class.forName(planner.getName()+"$DragHit");
+            var draftHit=draftHitType.getDeclaredConstructor(int.class,int.class,int.class,int.class,double.class,double.class);draftHit.setAccessible(true);
+            set(planner,"dragHits",List.of(draftHit.newInstance(line,marker,-1,-1,x,y)));
+            if(!IceRoadPlannerOverlay.click(x,y,station.x(),station.z(),w)
+                ||(int)field(draft,draft.getClass(),"activeLine")!=line
+                ||(int)field(null,planner,"selectedMarker")!=marker)
+                throw new IllegalStateException("Station on inactive draft line was not selected");
+            call(null,planner,"clearMarkerSelection",new Class[]{});
+            set(planner,"dragHits",List.of());set(IceRoadOverlay.class,"hits",List.of());
+            var edge=network.segments().stream().filter(e->!IceRoadPlannerOverlay.hidesNetworkLine(e.company(),e.line())).findFirst().orElseThrow();
+            double cx=(edge.x1()+edge.x2())/2,cz=(edge.z1()+edge.z2())/2;
+            set(planner,"viewCamX",cx);set(planner,"viewCamZ",cz);
+            if(!IceRoadPlannerOverlay.click(x,y,cx,cz,w)||!Boolean.TRUE.equals(call(null,planner,"validSelectedSegment",new Class[]{})))
+                throw new IllegalStateException("Existing network line was not selected");
+            RouteFinderMod.LOGGER.info("ROUTE_EXISTING_NETWORK_SELECTION_SMOKE_OK");
+        }finally{
+            cfg.iceRoadOverlayEnabled=enabled;
+            set(planner,"dragHits",List.of());set(planner,"segmentHits",List.of());
+            set(IceRoadOverlay.class,"hits",List.of());set(planner,"viewTransformValid",false);
         }
     }
     public static void verify(Minecraft mc) throws ReflectiveOperationException{
