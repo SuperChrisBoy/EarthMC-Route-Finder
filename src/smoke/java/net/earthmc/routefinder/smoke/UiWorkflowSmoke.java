@@ -34,7 +34,7 @@ public final class UiWorkflowSmoke {
             var window=mc.getWindow();
             var viewport=OverlayViewport.planner(window.getGuiScaledWidth(),window.getGuiScaledHeight());
             var bar=PlannerToolbarLayout.of(viewport.width(),viewport.height());
-            double clickX=viewport.anchor()+(154-viewport.anchor())*viewport.scale(),clickY=(bar.top()-12)*viewport.scale();
+            double clickX=28*viewport.scale(),clickY=(bar.top()-12)*viewport.scale();
             if(!IceRoadPlannerOverlay.click(clickX,clickY,0,0,window.getGuiScaledWidth())||!(mc.gui.screen() instanceof CoordinatesScreen))
                 throw new IllegalStateException("Scaled Y button missed");
             if(Boolean.TRUE.equals(field(null,type,"uiPressHandled")))throw new IllegalStateException("Dialog leaves stale map release");
@@ -65,6 +65,17 @@ public final class UiWorkflowSmoke {
             press(mc.gui.screen(),"Apply");
             Object placed=vertices.getLast();
             if(vertices.size()!=2||!field(placed,placed.getClass(),"y").equals(-32.0))throw new IllegalStateException("Chosen placement Y not applied");
+            Class<?> pointType=placed.getClass();
+            var pointConstructor=pointType.getDeclaredConstructor(double.class,double.class,double.class);pointConstructor.setAccessible(true);
+            for(int i=0;i<3;i++){
+                call(null,type,"placeMapPoint",new Class[]{pointType},pointConstructor.newInstance(200.5+i*100,200.5,-32));
+                if(!Boolean.TRUE.equals(field(null,type,"pointConnecting"))
+                    ||!Objects.equals(call(null,type,"selectedPointValue",new Class[]{}),vertices.getLast()))
+                    throw new IllegalStateException("Drawing did not advance to latest point");
+            }
+            if(vertices.size()!=5)throw new IllegalStateException("Continuous drawing lost points");
+            call(null,type,"cancelPointConnection",new Class[]{});
+            if(Boolean.TRUE.equals(field(null,type,"pointConnecting")))throw new IllegalStateException("Finish drawing ignored");
         }finally{
             if(IceRoadPlannerOverlay.active()!=wasActive)IceRoadPlannerOverlay.toggle();
             drafts.clear();drafts.addAll(original);set(type,"draftIndex",oldIndex);set(type,"placementY",oldY);set(type,"tool",oldTool);

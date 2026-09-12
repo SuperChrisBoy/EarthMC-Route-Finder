@@ -42,7 +42,7 @@ public final class IceRoadPlannerOverlay {
   private static final int W = 230,
       ROW = 20,
       MAX_BRANCH_ROWS = 4,
-      PROJECT_X = 126,
+      PROJECT_X = 0,
       PROJECT_W = 190,
       HEADER_H = 28,
       TOOL_W = 68,
@@ -124,6 +124,9 @@ public final class IceRoadPlannerOverlay {
   private static List<DragHit> dragHits = List.of();
   private static List<SegmentHit> segmentHits = List.of();
   private static final List<NodeRef> multiSelection = new ArrayList<>();
+  private record SelectedEdge(int line, int branch, int segment) {}
+  private static final Set<SelectedEdge> selectedEdges = new LinkedHashSet<>();
+  private static int networkPage;
   private static CopiedRoute copiedRoute;
 
   private record Point(double x, double z, double y) {
@@ -395,6 +398,9 @@ public final class IceRoadPlannerOverlay {
             sh);
     }
     drawMeasurement(g, camX, camZ, scale, sw, sh);
+    if (!export) for (SegmentHit hit : segments)
+      if (selectedEdges.contains(new SelectedEdge(hit.line, hit.branch, hit.segment)))
+        line(g, (int) hit.ax, (int) hit.ay, (int) hit.bx, (int) hit.by, 0xFFFFFF55, 4);
     dragHits = List.copyOf(hits);
     segmentHits = List.copyOf(segments);
   }
@@ -415,7 +421,8 @@ public final class IceRoadPlannerOverlay {
     if(!active)return;
     if (!RouteFinderMod.composingScreenshot()) {
       editorChrome(g, sw, sh);
-      if (!multiSelection.isEmpty()) multiSelectionPanel(g, sw);
+      if (!selectedEdges.isEmpty()) edgeSelectionPanel(g, sw);
+      else if (!multiSelection.isEmpty()) multiSelectionPanel(g, sw);
       else {
         markerPanel(g, sw);
         segmentPanel(g, sw);
@@ -576,7 +583,7 @@ public final class IceRoadPlannerOverlay {
                 b.vertices.get(i).x - b.vertices.get(i - 1).x,
                 b.vertices.get(i).z - b.vertices.get(i - 1).z);
     int width = 330, x = Math.max(PROJECT_X + PROJECT_W + 8, sw / 2 - width / 2), y = sh - 66;
-    g.fill(x, y, x + width, y + 28, 0xE80A1419);
+    g.fill(x, y, x + width, y + 28, 0xFF101318);
     g.text(
         Minecraft.getInstance().font,
         "Drawing: " + draft().line + " / " + b.name + " | Y " + number(b.y),
@@ -914,6 +921,11 @@ public final class IceRoadPlannerOverlay {
     draftDropdown = toolDropdown = false;
     coordinateField = 0;
     DragHit hit = nearestHit(mx, my);
+    if ((editorState.tool() == EditorTool.MULTI_SELECT || additiveSelection())
+        && (hit == null || (additiveSelection() && hit.station < 0))) {
+      SegmentHit edge = nearestSegment(mx, my);
+      if (edge != null) { toggleEdge(edge); return true; }
+    }
     if (hit != null) {
       if (editorState.tool() == EditorTool.MULTI_SELECT) {
         toggleMultiSelection(hit);
@@ -959,6 +971,10 @@ public final class IceRoadPlannerOverlay {
           return true;
         }
         selectPoint(hit);
+        if (editorState.tool() == EditorTool.DRAW) {
+          beginPointConnection();
+          return true;
+        }
         if (directDragTool(editorState.tool())) armDrag(hit, mx, my);
         return true;
       }
@@ -971,7 +987,11 @@ public final class IceRoadPlannerOverlay {
       else if (editorState.tool() == EditorTool.REMOVE) removeSelectedSegment();
       return true;
     }
-    if (editorState.tool() == EditorTool.SELECT) return false;
+    if (editorState.tool() == EditorTool.SELECT) {
+      clearMarkerSelection();
+      multiSelection.clear();
+      return false;
+    }
     if (editorState.tool() == EditorTool.MEASURE) {
       double[] world = currentWorldAt(mx, my, worldX, worldZ);
       measure(new Point(blockCenter(world[0]), blockCenter(world[1])));
@@ -992,10 +1012,20 @@ public final class IceRoadPlannerOverlay {
   private static boolean clickPlannerUi(double mx, double my, int sw) {
     var v=uiViewport();mx=v.x(mx);my=v.y(my);sw=v.width();
     // The route panel is rendered as a modal and therefore receives input before every other panel.
+    if (!selectedEdges.isEmpty() && clickEdgeSelectionPanel(mx, my, sw)) return true;
     if (!multiSelection.isEmpty() && clickMultiSelectionPanel(mx, my, sw)) return true;
     if (clickColorPicker(mx, my, sw)) return true;
+    int historyY = PlannerToolbarLayout.of(sw, v.height()).top() - 70;
+    int historyX = markerPanelX(sw);
+    if (my >= historyY + 26 && my < historyY + 44 && mx >= historyX + 8 && mx < historyX + W - 8) {
+      if (mx < historyX + W / 2) undo(); else redo();
+      return true;
+    }
     if (clickEditorChrome(mx, my, sw)) return true;
-    return clickMarkerPanel(mx, my, sw);
+    if (clickMarkerPanel(mx, my, sw)) return true;
+    int bottom = PlannerToolbarLayout.of(sw, v.height()).top();
+    return mx >= PROJECT_X && mx < sw - 8
+        && (mx < PROJECT_W || my < 32 || my >= bottom || (mx >= markerPanelX(sw) && my >= 36));
   }
 
   static boolean shouldFallbackToUiRelease(boolean handledOnPress) {
@@ -1005,7 +1035,7 @@ public final class IceRoadPlannerOverlay {
   private static void panel(GuiGraphicsExtractor g, int sw) {
     Draft d = draft();
     int x = sw - W - 8, y = 8;
-    g.fill(x, y, x + W, y + panelHeight(), 0xF20A1419);
+    g.fill(x, y, x + W, y + panelHeight(), 0xFF101318);
     g.text(Minecraft.getInstance().font, "Ice Highway Editor", x + 8, y + 8, 0xFFFFFFFF, false);
     button(g, x + 8, y + 26, W - 16, "Save: " + d.name + " ▼");
     button(g, x + 8, y + 50, W - 16, "New draft (" + drafts.size() + " saved)");
@@ -1102,15 +1132,15 @@ public final class IceRoadPlannerOverlay {
   }
 
   private static void button(GuiGraphicsExtractor g, int x, int y, int w, String text) {
-    g.fill(x, y, x + w, y + 18, 0xFF20343D);
-    g.fill(x, y + 16, x + w, y + 18, 0xFF4E7180);
+    g.fill(x, y, x + w, y + 18, 0xFF29486A);
+    g.fill(x, y + 16, x + w, y + 18, 0xFF42658B);
     g.centeredText(Minecraft.getInstance().font, text, x + w / 2, y + 5, 0xFFFFFFFF);
   }
 
   private static void field(
       GuiGraphicsExtractor g, int x, int y, int w, String label, String value, boolean focused) {
     g.fill(x, y, x + w, y + 18, focused ? 0xFF315E70 : 0xFF17262D);
-    g.fill(x, y + 16, x + w, y + 18, focused ? 0xFF7EDCF2 : 0xFF4E7180);
+    g.fill(x, y + 16, x + w, y + 18, focused ? 0xFF7EDCF2 : 0xFF42658B);
     g.text(
         Minecraft.getInstance().font,
         label + ": " + value + (focused ? "_" : ""),
@@ -1150,6 +1180,12 @@ public final class IceRoadPlannerOverlay {
       return true;
     }
     if (coordinateField != 0 || nameEditing != 0) return false;
+    if (ctrl && key == GLFW.GLFW_KEY_A) {
+      clearMarkerSelection();
+      multiSelection.clear();
+      for (int i = 0; i < draft().lines.size(); i++) selectLineEdges(i);
+      return true;
+    }
     if (key == GLFW.GLFW_KEY_V) {
       activateTool(EditorTool.SELECT);
       return true;
@@ -1180,7 +1216,8 @@ public final class IceRoadPlannerOverlay {
       return true;
     }
     if (key == GLFW.GLFW_KEY_DELETE) {
-      if (selectedStation() != null) deleteSelectedMarker();
+      if (!selectedEdges.isEmpty()) deleteSelectedEdges();
+      else if (selectedStation() != null) deleteSelectedMarker();
       else if (validSelectedPoint()) deleteSelectedPoint();
       else if (validSelectedSegment()) removeSelectedSegment();
       return true;
@@ -1198,6 +1235,7 @@ public final class IceRoadPlannerOverlay {
   }
 
   private static void activateTool(EditorTool next) {
+    if (next != EditorTool.MULTI_SELECT && next != EditorTool.SELECT) selectedEdges.clear();
     pendingPlacement = false;
     newLinePending = false;
     pointConnecting = false;
@@ -1271,7 +1309,7 @@ public final class IceRoadPlannerOverlay {
     Station s = selectedStation();
     if (s == null) return;
     int x = markerPanelX(sw), y = 40;
-    g.fill(x, y, x + W, y + 194, 0xF20A1419);
+    g.fill(x, y, x + W, y + 194, 0xFF101318);
     g.text(Minecraft.getInstance().font, "Selected marker", x + 8, y + 8, 0xFFFFFFFF, false);
     g.text(
         Minecraft.getInstance().font,
@@ -1296,10 +1334,156 @@ public final class IceRoadPlannerOverlay {
     if (markerMembershipPanel) drawMarkerMembershipPanel(g, sw, s);
   }
 
+  private static boolean additiveSelection() {
+    Minecraft mc = Minecraft.getInstance();
+    if (mc == null) return false;
+    long w = mc.getWindow().handle();
+    return GLFW.glfwGetKey(w, GLFW.GLFW_KEY_LEFT_CONTROL) == GLFW.GLFW_PRESS
+        || GLFW.glfwGetKey(w, GLFW.GLFW_KEY_RIGHT_CONTROL) == GLFW.GLFW_PRESS
+        || GLFW.glfwGetKey(w, GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS
+        || GLFW.glfwGetKey(w, GLFW.GLFW_KEY_RIGHT_SHIFT) == GLFW.GLFW_PRESS;
+  }
+
+  private static void toggleEdge(SegmentHit hit) {
+    Set<SelectedEdge> previous = new LinkedHashSet<>(selectedEdges);
+    if (validSelectedSegment())
+      previous.add(new SelectedEdge(draft().activeLine, selectedSegmentBranch, selectedSegment));
+    clearMarkerSelection();
+    multiSelection.clear();
+    selectedEdges.addAll(previous);
+    SelectedEdge edge = new SelectedEdge(hit.line, hit.branch, hit.segment);
+    if (!selectedEdges.remove(edge)) selectedEdges.add(edge);
+  }
+
+  private static void selectLineEdges(int index) {
+    storeActiveLine(draft());
+    LineData line = draft().lines.get(index);
+    for (int bi = 0; bi < line.branches.size(); bi++) {
+      Branch b = line.branches.get(bi);
+      for (int i = 1; i < b.vertices.size(); i++)
+        if (!b.breaks.contains(i)) selectedEdges.add(new SelectedEdge(index, bi, i - 1));
+      for (int i = 0; i < b.links.size(); i++)
+        selectedEdges.add(new SelectedEdge(index, bi, -i - 1));
+    }
+  }
+
+  private static void edgeSelectionPanel(GuiGraphicsExtractor g, int sw) {
+    int x = markerPanelX(sw), y = 40;
+    g.fill(x, y, x + W, y + 220, 0xFF101318);
+    g.fill(x, y, x + W, y + 20, 0xFF294D78);
+    g.text(Minecraft.getInstance().font, "SELECTION / ICE ROUTES", x + 8, y + 6, -1, false);
+    g.text(Minecraft.getInstance().font, selectedEdges.size() + " segments selected", x + 8, y + 28, 0xFFFFFF77, false);
+    button(g, x + 8, y + 48, W - 16, "Set height (Y)");
+    button(g, x + 8, y + 72, W - 16, "Move by X / Y / Z");
+    button(g, x + 8, y + 96, W - 16, "Delete selected segments");
+    button(g, x + 8, y + 120, W - 16, "Select all lines");
+    button(g, x + 8, y + 144, W - 16, "Clear selection");
+    g.text(Minecraft.getInstance().font, "Ctrl / Shift + click: toggle", x + 8, y + 174, 0xFFAFBED0, false);
+    g.text(Minecraft.getInstance().font, "Shared endpoints move together.", x + 8, y + 190, 0xFFAFBED0, false);
+    g.text(Minecraft.getInstance().font, "Ctrl+Z undo / Ctrl+Shift+Z redo", x + 8, y + 204, 0xFFAFBED0, false);
+  }
+
+  private static boolean clickEdgeSelectionPanel(double mx, double my, int sw) {
+    int x = markerPanelX(sw), y = 40;
+    if (mx < x || mx >= x + W || my < y || my >= y + 220) return false;
+    if (mx < x + 8 || mx >= x + W - 8) return true;
+    int row = (int) (my - y - 48) / 24;
+    if (my < y + 48 || my >= y + 162 || (my - y - 48) % 24 >= 18) return true;
+    if (row <= 1) {
+      boolean heightOnly = row == 0;
+      Minecraft mc = Minecraft.getInstance();
+      mc.gui.setScreen(new CoordinatesScreen(mc.gui.screen(),
+          heightOnly ? "Set selected route height" : "Move selected routes by offset",
+          "0", heightOnly ? coordinateY : "0", "0", heightOnly, value -> {
+            checkpoint();
+            transformSelectedEdges(draft(), selectedEdges, value, heightOnly);
+            saveLibraryQuiet();
+          }));
+    } else if (row == 2) deleteSelectedEdges();
+    else if (row == 3) for (int i = 0; i < draft().lines.size(); i++) selectLineEdges(i);
+    else if (row == 4) selectedEdges.clear();
+    return true;
+  }
+
+  private static void transformSelectedEdges(Draft d, Set<SelectedEdge> selection,
+      CoordinatesScreen.XYZ offset, boolean heightOnly) {
+    storeActiveLine(d);
+    // Resolve endpoint identities before changing anything, so shared vertices move once.
+    Map<Integer, Set<Point>> points = new HashMap<>();
+    for (SelectedEdge edge : selection) {
+      Branch b = d.lines.get(edge.line).branches.get(edge.branch);
+      Point a = edge.segment < 0 ? b.links.get(-edge.segment - 1).a : b.vertices.get(edge.segment);
+      Point z = edge.segment < 0 ? b.links.get(-edge.segment - 1).b : b.vertices.get(edge.segment + 1);
+      points.computeIfAbsent(edge.line, k -> new HashSet<>()).addAll(List.of(a, z));
+    }
+    for (var entry : points.entrySet()) {
+      LineData line = d.lines.get(entry.getKey());
+      for (Branch b : line.branches) {
+        java.util.function.UnaryOperator<Point> move = p -> !entry.getValue().contains(p) ? p
+            : new Point(heightOnly ? p.x : p.x + offset.x(), heightOnly ? p.z : p.z + offset.z(),
+                heightOnly ? offset.y() : pointY(p, b) + offset.y());
+        b.vertices.replaceAll(move);
+        b.links.replaceAll(link -> new Link(move.apply(link.a), move.apply(link.b)));
+      }
+      line.stations.replaceAll(station -> !entry.getValue().contains(new Point(station.x, station.z))
+          ? station : new Station(station.id, station.name, station.type,
+              heightOnly ? station.x : station.x + offset.x(),
+              heightOnly ? offset.y() : station.y + offset.y(),
+              heightOnly ? station.z : station.z + offset.z()));
+    }
+    bindLine(d, d.activeLine);
+  }
+
+  private static void deleteSelectedEdges() {
+    checkpoint();
+    deleteEdges(draft(), selectedEdges);
+    selectedEdges.clear();
+    saveLibraryQuiet();
+  }
+
+  private static void deleteEdges(Draft d, Set<SelectedEdge> selection) {
+    storeActiveLine(d);
+    // Descending connector indices prevent removals from invalidating later references.
+    List<SelectedEdge> ordered = new ArrayList<>(selection);
+    ordered.sort(Comparator.comparingInt(SelectedEdge::segment));
+    for (SelectedEdge edge : ordered) {
+      Branch b = d.lines.get(edge.line).branches.get(edge.branch);
+      if (edge.segment < 0) b.links.remove(-edge.segment - 1);
+      else b.breaks.add(edge.segment + 1);
+    }
+  }
+
+  static double[] batchSegmentEditForTest(boolean heightOnly) {
+    Draft d = new Draft("Batch test");
+    Branch a = d.branches.getFirst();
+    a.y = 64;
+    a.vertices.addAll(List.of(new Point(0, 0), new Point(10, 0), new Point(20, 0)));
+    a.links.add(new Link(a.vertices.get(1), a.vertices.get(2)));
+    d.stations.add(new Station(1, "Shared", "station", 10, 64, 0));
+    LineData other = new LineData();
+    Branch b = other.branches.getFirst();
+    b.vertices.addAll(List.of(new Point(100, 0, 80), new Point(120, 0, 80), new Point(140, 0, 80)));
+    b.links.add(new Link(b.vertices.get(0), b.vertices.get(1)));
+    b.links.add(new Link(b.vertices.get(1), b.vertices.get(2)));
+    d.lines.add(other);
+    Set<SelectedEdge> selection = new LinkedHashSet<>(List.of(
+        new SelectedEdge(0, 0, 0), new SelectedEdge(0, 0, 1),
+        new SelectedEdge(1, 0, -1), new SelectedEdge(1, 0, -2)));
+    transformSelectedEdges(d, selection, new CoordinatesScreen.XYZ(5, 12, -3), heightOnly);
+    double[] result = {a.vertices.get(1).x, a.vertices.get(1).y, a.vertices.get(1).z,
+        a.links.getFirst().a.x, d.stations.getFirst().x, b.vertices.get(1).x,
+        b.vertices.get(1).y, 0, 0, 0};
+    deleteEdges(d, selection);
+    result[7] = a.breaks.size();
+    result[8] = b.links.size();
+    result[9] = a.links.size();
+    return result;
+  }
+
   private static void multiSelectionPanel(GuiGraphicsExtractor g, int sw) {
     int x = markerPanelX(sw), y = 40;
     int messageHeight = extractionMessage.isEmpty() ? 0 : 28;
-    g.fill(x, y, x + W, y + 184 + messageHeight, 0xF20A1419);
+    g.fill(x, y, x + W, y + 184 + messageHeight, 0xFF101318);
     g.text(Minecraft.getInstance().font, "Extract selected route", x + 8, y + 8, 0xFFFFFFFF, false);
     g.text(
         Minecraft.getInstance().font,
@@ -1447,6 +1631,7 @@ public final class IceRoadPlannerOverlay {
   }
 
   private static void toggleMultiSelection(DragHit hit) {
+    selectedEdges.clear();
     extractionMessage = "";
     NodeRef ref =
         hit.station >= 0
@@ -1995,7 +2180,7 @@ public final class IceRoadPlannerOverlay {
     Point a = selectedSegmentStart(b), c = selectedSegmentEnd(b);
     int x = markerPanelX(sw), y = 40;
     boolean link = selectedSegment < 0;
-    g.fill(x, y, x + W, y + (link ? 140 : 280), 0xF20A1419);
+    g.fill(x, y, x + W, y + (link ? 140 : 280), 0xFF101318);
     g.text(Minecraft.getInstance().font, "Selected line segment", x + 8, y + 8, 0xFFFFFFFF, false);
     g.text(
         Minecraft.getInstance().font,
@@ -2218,7 +2403,7 @@ public final class IceRoadPlannerOverlay {
     if (!validSelectedPoint()) return;
     Point p = selectedPointValue();
     int x = markerPanelX(sw), y = 40;
-    g.fill(x, y, x + W, y + 208, 0xF20A1419);
+    g.fill(x, y, x + W, y + 208, 0xFF101318);
     g.text(
         Minecraft.getInstance().font,
         pointConnecting ? "Connection source selected" : "Selected line point",
@@ -2265,7 +2450,7 @@ public final class IceRoadPlannerOverlay {
     if (!branchPanel) return;
     Branch b = branch();
     int x = markerPanelX(sw), y = 40;
-    g.fill(x, y, x + W, y + BRANCH_PANEL_H, 0xF20A1419);
+    g.fill(x, y, x + W, y + BRANCH_PANEL_H, 0xFF101318);
     g.text(Minecraft.getInstance().font, "Selected branch", x + 8, y + 8, 0xFFFFFFFF, false);
     g.text(
         Minecraft.getInstance().font,
@@ -2900,6 +3085,7 @@ public final class IceRoadPlannerOverlay {
       Branch b = draft().branches.get(selectedPointBranch);
       Point old = b.vertices.get(selectedPoint);
       replaceSharedPointEverywhere(draft(), old, x, z, y);
+      if (pointConnecting) connectionStart = selectedPointValue();
       coordinateField = 0;
       saveLibraryQuiet();
       notice("Updated point XYZ to " + number(x) + ", " + number(y) + ", " + number(z));
@@ -2914,8 +3100,25 @@ public final class IceRoadPlannerOverlay {
     connectionStart = p;
     pointConnecting = true;
     pointEditing = false;
+    editorState.activate(EditorTool.DRAW);
     tool = 0;
     notice("Source selected; click an existing or new point");
+  }
+
+  private static void continueDrawingFrom(int branchIndex, int vertex) {
+    editorState.activate(EditorTool.DRAW);
+    selectedPointBranch = branchIndex;
+    selectedPoint = vertex;
+    draft().branch = branchIndex;
+    pointEditing = false;
+    branchPanel = false;
+    newLinePending = false;
+    connectionStart = selectedPointValue();
+    pointConnecting = true;
+    tool = 0;
+    coordinateX = exact(connectionStart.x);
+    coordinateY = exact(pointY(connectionStart, branch()));
+    coordinateZ = exact(connectionStart.z);
   }
 
   private static void cancelPointConnection() {
@@ -2932,22 +3135,13 @@ public final class IceRoadPlannerOverlay {
       return;
     }
     Branch owner = draft().branches.get(selectedPointBranch);
-    for (Link link : owner.links)
-      if (link.a.equals(connectionStart) && link.b.equals(target)
-          || link.a.equals(target) && link.b.equals(connectionStart)) {
-        cancelPointConnection();
-        notice("Those points are already connected");
-        return;
-      }
-    checkpoint();
-    owner.links.add(new Link(connectionStart, target));
-    pointConnecting = false;
-    connectionStart = null;
-    coordinateX = number(selectedPointValue().x);
-    coordinateY = number(owner.y);
-    coordinateZ = number(selectedPointValue().z);
-    saveLibraryQuiet();
-    notice("Connected points; original source remains selected");
+    if (!hasDirectConnection(owner, connectionStart, target)) {
+      checkpoint();
+      owner.links.add(new Link(connectionStart, target));
+      saveLibraryQuiet();
+    }
+    continueDrawingFrom(targetHit.branch, targetHit.vertex);
+    notice("Continue from this point; Esc to finish");
   }
 
   private static void finishPointConnection(Point target) {
@@ -2962,29 +3156,54 @@ public final class IceRoadPlannerOverlay {
     }
     checkpoint();
     Branch b = draft().branches.get(selectedPointBranch);
-    int source = selectedPoint;
+    int next = appendConnection(b, selectedPoint, target);
+    continueDrawingFrom(selectedPointBranch, next);
+    saveLibraryQuiet();
+    notice("Continue from this point; Esc to finish");
+  }
+
+  private static int appendConnection(Branch b, int source, Point target) {
+    int existing = b.vertices.indexOf(target);
+    if (existing >= 0) {
+      if (existing != source && !hasDirectConnection(b, b.vertices.get(source), target))
+        b.links.add(new Link(b.vertices.get(source), b.vertices.get(existing)));
+      return existing;
+    }
     boolean runStart = source == 0 || b.breaks.contains(source),
         runEnd = source == b.vertices.size() - 1 || b.breaks.contains(source + 1);
-    if (runEnd) insertPoint(b, source + 1, target);
+    if (runEnd) {
+      insertPoint(b, source + 1, target);
+      return source + 1;
+    }
     else if (runStart) {
       insertPoint(b, source, target);
       if (source > 0) {
         b.breaks.remove(source + 1);
         b.breaks.add(source);
       }
-      selectedPoint = source + 1;
+      return source;
     } else {
-      insertPoint(b, source + 1, target);
-      b.breaks.add(source + 2);
+      Point from = b.vertices.get(source);
+      addStandalonePoint(b, target);
+      b.links.add(new Link(from, target));
+      return b.vertices.size() - 1;
     }
-    pointConnecting = false;
-    connectionStart = null;
-    Point selected = selectedPointValue();
-    coordinateX = number(selected.x);
-    coordinateY = number(pointY(selected, b));
-    coordinateZ = number(selected.z);
-    saveLibraryQuiet();
-    notice("Connected new line; original source remains selected");
+  }
+
+  static boolean[] continuousConnectionForTest(int source) {
+    Branch b = new Branch("Continuous");
+    Point a = new Point(0, 0, 64), middle = new Point(10, 0, 64), end = new Point(20, 0, 64);
+    b.vertices.addAll(List.of(a, middle, end));
+    Point origin = b.vertices.get(source), next = new Point(10, 20, 70), last = new Point(10, 40, 75);
+    int cursor = appendConnection(b, source, next);
+    cursor = appendConnection(b, cursor, last);
+    boolean atLast = b.vertices.get(cursor).equals(last);
+    cursor = appendConnection(b, cursor, end);
+    int count = b.links.size();
+    appendConnection(b, cursor, last);
+    return new boolean[] {hasDirectConnection(b, a, middle), hasDirectConnection(b, middle, end),
+        hasDirectConnection(b, origin, next), hasDirectConnection(b, next, last),
+        hasDirectConnection(b, last, end), atLast, b.vertices.size() == 5, count == b.links.size()};
   }
 
   private static void deleteSelectedPoint() {
@@ -3068,6 +3287,8 @@ public final class IceRoadPlannerOverlay {
   }
 
   private static void startNewLine() {
+    clearMarkerSelection();
+    activateTool(EditorTool.DRAW);
     tool = 0;
     newLinePending = true;
     branchPanel = false;
@@ -3076,16 +3297,9 @@ public final class IceRoadPlannerOverlay {
 
   private static void continueFromSelectedSegment() {
     if (!validSequentialSelectedSegment()) return;
-    checkpoint();
-    Branch b = draft().branches.get(selectedSegmentBranch);
-    Point start = b.vertices.get(selectedSegment + 1);
-    b.breaks.add(b.vertices.size());
-    b.vertices.add(start);
-    draft().branch = selectedSegmentBranch;
-    tool = 0;
-    newLinePending = false;
+    int owner = selectedSegmentBranch, vertex = selectedSegment + 1;
     clearSegmentSelection();
-    saveLibraryQuiet();
+    continueDrawingFrom(owner, vertex);
     notice("Click to add connecting points");
   }
 
@@ -3347,6 +3561,8 @@ public final class IceRoadPlannerOverlay {
   }
 
   private static void clearMarkerSelection() {
+    selectedEdges.clear();
+    multiSelection.clear();
     selectedMarker = -1;
     markerEditing = false;
     markerMembershipPanel = false;
@@ -3558,7 +3774,7 @@ public final class IceRoadPlannerOverlay {
       return new Point(Math.floor(x / 16) * 16 + 8.5, Math.floor(z / 16) * 16 + 8.5);
     if (current.vertices.isEmpty() || !snapSettings.enabled(SnapTarget.GRID))
       return new Point(blockCenter(x), blockCenter(z));
-    Point from = current.vertices.getLast();
+    Point from = pointConnecting && connectionStart != null ? connectionStart : current.vertices.getLast();
     double[] p = snapDirection(from.x, from.z, x, z);
     return new Point(p[0], p[1]);
   }
@@ -3794,6 +4010,7 @@ public final class IceRoadPlannerOverlay {
   }
 
   private static void restoreSnapshot(JsonObject root) {
+    multiSelection.clear();
     drafts.clear();
     for (JsonElement e : root.getAsJsonArray("drafts")) drafts.add(parseDraft(e.getAsJsonObject()));
     if (drafts.isEmpty()) drafts.add(new Draft("Draft 1"));
@@ -3815,12 +4032,11 @@ public final class IceRoadPlannerOverlay {
   private static void addPoint(Branch b, double x, double y, double z) {
     Point p = new Point(x, z, y);
     if (b.vertices.contains(p)) {
-      notice("That point already exists; select it to connect");
-      newLinePending = false;
+      continueDrawingFrom(draft().branch, b.vertices.indexOf(p));
       return;
     }
     addStandalonePoint(b, p);
-    newLinePending = false;
+    continueDrawingFrom(draft().branch, b.vertices.size() - 1);
   }
 
   static void addStandalonePointForTest(
@@ -4786,24 +5002,26 @@ public final class IceRoadPlannerOverlay {
   private static void editorChrome(GuiGraphicsExtractor g, int sw, int sh) {
     Draft d = draft();
     int right = sw - 8;
-    g.fill(PROJECT_X, 4, right, 4 + HEADER_H, 0xF20A1419);
+    g.fill(0, 0, PROJECT_W, sh, 0xFF101318);
+    g.fill(PROJECT_X, 4, right, 4 + HEADER_H, 0xFF101318);
     if(sw>=850)g.text(
         Minecraft.getInstance().font, "ICE HIGHWAY EDITOR", PROJECT_X + 8, 13, 0xFFFFFFFF, false);
     var draftButton=PlannerToolbarLayout.draftButton(sw);
     button(g,draftButton.x(),draftButton.y(),draftButton.width(),Minecraft.getInstance().font.plainSubstrByWidth(d.name,draftButton.width()-18)+" v");
-    if(draftButton.x()+draftButton.width()+70<right-188)g.text(
+    if(draftButton.x()+draftButton.width()+70<right-274)g.text(
         Minecraft.getInstance().font,
         editorState.dirty() ? "Saving..." : "Saved",
         draftButton.x()+draftButton.width()+10,
         13,
         editorState.dirty() ? 0xFFFFFF77 : 0xFF77FFAA,
         false);
+    button(g, right - 274, 9, 78, "Exit editor");
     button(g, right - 188, 9, 86, "Validate");
     button(g, right - 96, 9, 88, "Export v");
     int bottom = PlannerToolbarLayout.of(sw, sh).top();
     button(g,PROJECT_X+8,bottom-22,83,placementY==null?"Y: unset":"Y: "+number(placementY));
     button(g,PROJECT_X+99,bottom-22,83,"Add XYZ");
-    g.fill(PROJECT_X, 36, PROJECT_X + PROJECT_W, bottom - 24, 0xE80A1419);
+    g.fill(PROJECT_X, 36, PROJECT_X + PROJECT_W, bottom - 24, 0xFF101318);
     g.text(Minecraft.getInstance().font, "NETWORK", PROJECT_X + 8, 44, 0xFF8FD9FF, false);
     button(g, PROJECT_X + 8, 60, PROJECT_W - 16, d.name + " v");
     g.text(
@@ -4812,9 +5030,12 @@ public final class IceRoadPlannerOverlay {
         PROJECT_X + 10, 86, 0xFFFFFFFF, false);
     button(g, PROJECT_X + PROJECT_W - 64, 82, 56, "Rename");
     storeActiveLine(d);
-    int by = 102;
-    for (NetworkRow row : networkRows(d)) {
-      if (by + 20 > bottom - 170) break;
+    int by = 230;
+    int pageRows = Math.max(1, (bottom - 194 - 230) / 20);
+    List<NetworkRow> allRows = networkRows(d);
+    networkPage = Math.clamp(networkPage, 0, Math.max(0, (allRows.size() - 1) / pageRows));
+      for (NetworkRow row : allRows.subList(Math.min(allRows.size(), networkPage * pageRows), allRows.size())) {
+      if (by + 20 > bottom - 194) break;
       button(
           g,
           PROJECT_X + 12,
@@ -4823,6 +5044,7 @@ public final class IceRoadPlannerOverlay {
           row.label);
       by += 20;
     }
+    button(g, PROJECT_X + 8, bottom - 188, PROJECT_W - 16, "Routes page " + (networkPage + 1) + " / " + Math.max(1, (allRows.size() + pageRows - 1) / pageRows) + " >");
     button(g, PROJECT_X + 8, bottom - 164, (PROJECT_W - 20) / 2, "Show all");
     button(
         g,
@@ -4850,13 +5072,26 @@ public final class IceRoadPlannerOverlay {
         bottom - 44,
         PROJECT_W - 16,
         "Coordinates: " + COORDINATE_MODES[d.coordinateMode]);
-    g.fill(PROJECT_X, bottom, sw - 8, sh - 6, 0xF20A1419);
+    g.fill(markerPanelX(sw), 36, sw - 8, bottom - 4, 0xFF101318);
+    int inspectorX = markerPanelX(sw), historyY = bottom - 70;
+    g.fill(inspectorX, 40, sw - 8, 60, 0xFF294D78);
+    g.text(Minecraft.getInstance().font, "SELECTION / ICE ROUTES", inspectorX + 8, 46, -1, false);
+    g.text(Minecraft.getInstance().font, "Select a route to inspect or edit.", inspectorX + 8, 72, 0xFFAFBED0, false);
+    g.fill(inspectorX, historyY, sw - 8, historyY + 20, 0xFF294D78);
+    g.text(Minecraft.getInstance().font, "EDIT HISTORY", inspectorX + 8, historyY + 6, -1, false);
+    button(g, inspectorX + 8, historyY + 26, (W - 24) / 2, "Undo (" + undoHistory.size() + ")");
+    button(g, inspectorX + W / 2 + 4, historyY + 26, (W - 24) / 2, "Redo (" + redoHistory.size() + ")");
+    g.fill(PROJECT_X, bottom, sw - 8, sh - 6, 0xFF101318);
+    g.text(Minecraft.getInstance().font, "Ctrl/Shift + click: multi-select lines   |   Ctrl+A: all   |   Ctrl+Z: undo", PROJECT_X + 8, bottom + 8, 0xFFAFBED0, false);
+    g.fill(PROJECT_X, 104, PROJECT_X + PROJECT_W, 124, 0xFF294D78);
+    g.text(Minecraft.getInstance().font, "ICE ROUTE TOOLS", PROJECT_X + 8, 110, -1, false);
+    button(g, PROJECT_X + 8, 210, PROJECT_W - 16, "Route Finder");
     var layout=PlannerToolbarLayout.of(sw,sh);
     for(int i=0;i<layout.count();i++){
       var rect=layout.button(i);
       boolean selected=i<EditorTool.values().length&&editorState.tool()==EditorTool.values()[i];
       String label=i<EditorTool.values().length?EditorTool.values()[i].label():"Snap v";
-      g.fill(rect.x(),rect.y(),rect.x()+rect.width(),rect.y()+rect.height(),selected?0xFF315E70:0xFF20343D);
+      g.fill(rect.x(),rect.y(),rect.x()+rect.width(),rect.y()+rect.height(),selected?0xFF315E70:0xFF29486A);
       g.centeredText(Minecraft.getInstance().font,label,rect.x()+rect.width()/2,rect.y()+6,selected?0xFFFFFF77:0xFFFFFFFF);
     }
   }
@@ -4866,12 +5101,13 @@ public final class IceRoadPlannerOverlay {
     storeActiveLine(draft);
     for (int i = 0; i < draft.lines.size(); i++) {
       LineData line = draft.lines.get(i);
+      final int lineIndex = i;
       rows.add(
           new NetworkRow(
               true,
               i,
               (line.visible ? "[x] " : "[ ] ")
-                  + (i == draft.activeLine ? "v " : "> ")
+                  + (selectedEdges.stream().anyMatch(edge -> edge.line == lineIndex) ? "* " : i == draft.activeLine ? "v " : "> ")
                   + line.line));
       if (i == draft.activeLine)
         for (int branchIndex = 0; branchIndex < line.branches.size(); branchIndex++) {
@@ -4887,6 +5123,7 @@ public final class IceRoadPlannerOverlay {
     }
     return rows;
   }
+
 
   private static void drawEditorMenus(GuiGraphicsExtractor g, int sw, int sh) {
     int bottom = PlannerToolbarLayout.of(sw, sh).top();
@@ -5074,6 +5311,10 @@ public final class IceRoadPlannerOverlay {
       exportMenu = false;
       return true;
     }
+    if (my >= 9 && my < 27 && mx >= sw - 282 && mx < sw - 204) {
+      toggle();
+      return true;
+    }
     if (my >= 9 && my < 27 && mx >= sw - 196 && mx < sw - 110) {
       validateDraft();
       return true;
@@ -5083,8 +5324,19 @@ public final class IceRoadPlannerOverlay {
       draftDropdown = false;
       return true;
     }
+    int toolHit = toolbarLayout.hit(mx, my);
+    if (toolHit >= 0) {
+      if (toolHit < EditorTool.values().length) activateTool(EditorTool.values()[toolHit]);
+      else snapMenu = !snapMenu;
+      return true;
+    }
     if (mx >= PROJECT_X && mx <= PROJECT_X + PROJECT_W && my >= 36 && my < bottom) {
       Draft d = draft();
+      if (my >= 210 && my < 228) {
+        toggle();
+        TeleportViewerOverlay.show(viewCamX, viewCamZ);
+        return true;
+      }
       if(my>=bottom-22&&my<bottom-2){
         if(mx<PROJECT_X+95)choosePlacementY(null);else addCoordinates();
         return true;
@@ -5099,9 +5351,9 @@ public final class IceRoadPlannerOverlay {
         return true;
       }
       List<NetworkRow> rows = networkRows(d);
-      int visibleRows=Math.min(rows.size(),Math.max(0,(bottom-170-102)/20));
-      if (my >= 102 && my < 102 + visibleRows * 20) {
-        int rowIndex = ((int) my - 102) / 20;
+      int visibleRows=Math.min(rows.size(),Math.max(0,(bottom-194-230)/20));
+      if (my >= 230 && my < 230 + visibleRows * 20) {
+        int rowIndex = networkPage * visibleRows + ((int) my - 230) / 20;
         if (rowIndex < rows.size()) {
           NetworkRow row = rows.get(rowIndex);
           if (row.line && mx < PROJECT_X + 58) {
@@ -5119,11 +5371,28 @@ public final class IceRoadPlannerOverlay {
             notice((target.visible ? "Showing " : "Hiding ") + target.name);
             return true;
           }
+          if (row.line && (additiveSelection() || editorState.tool() == EditorTool.MULTI_SELECT)) {
+            Set<SelectedEdge> before = new LinkedHashSet<>(selectedEdges);
+            clearMarkerSelection();
+            selectLineEdges(row.index);
+            Set<SelectedEdge> lineEdges = new LinkedHashSet<>(selectedEdges);
+            selectedEdges.clear();
+            selectedEdges.addAll(before);
+            if (before.containsAll(lineEdges)) selectedEdges.removeAll(lineEdges);
+            else selectedEdges.addAll(lineEdges);
+            multiSelection.clear();
+            return true;
+          }
           if (row.line) activateLine(d, row.index);
           else d.branch = row.index;
           clearMarkerSelection();
           branchPanel = true;
         }
+        return true;
+      }
+      if (my >= bottom - 188 && my < bottom - 170) {
+        int count = Math.max(1, (bottom - 194 - 230) / 20);
+        networkPage = (networkPage + 1) % Math.max(1, (rows.size() + count - 1) / count);
         return true;
       }
       if (my >= bottom - 164 && my < bottom - 144) {

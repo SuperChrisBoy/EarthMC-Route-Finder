@@ -8,7 +8,7 @@ import net.earthmc.routefinder.integration.XaeroWaypointBridge;
 import net.earthmc.routefinder.teleport.*;
 import java.util.*;
 
-/** Compact, draggable Teleport Viewer drawn directly over Xaero's World Map. */
+/** Compact, draggable Route Finder drawn directly over Xaero's World Map. */
 public final class TeleportViewerOverlay {
     private static final int W=360,HEADER=25,ROW=96,VISIBLE=4;
     private static boolean open,minimized,advanced,dragging,resultsCleared,advancedConfirmed;
@@ -25,6 +25,7 @@ public final class TeleportViewerOverlay {
     private static String feedback="";private static long feedbackUntil;
 
     private TeleportViewerOverlay(){}
+    public static void show(double x,double z){if(open){minimized=false;return;}open(x,z);}
 
     public static void open(double x,double z){targetX=x;targetZ=z;open=true;minimized=false;RouteFinderConfig cfg=RouteFinderMod.getConfig();advanced=cfg.teleportAdvancedEnabled&&cfg.teleportDefaultAdvanced;destinationView=DestinationView.USABLE;exitFilter=ExitFilter.EVERYTHING;selected=scroll=0;resultsCleared=false;advancedConfirmed=false;feedback="";currentPlan=null;currentRoutes=List.of();pendingRoutes=null;routeGeneration++;nextRoutePollAt=0;RouteFinderMod.refreshTeleportData(x,z);}
     public static void accessibilityLoaded(){

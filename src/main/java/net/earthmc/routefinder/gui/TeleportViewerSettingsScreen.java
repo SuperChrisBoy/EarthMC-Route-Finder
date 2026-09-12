@@ -7,7 +7,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.*;
 import net.earthmc.routefinder.*;
 
-/** Persistent Teleport Viewer preferences. Route results intentionally do not live here. */
+/** Persistent Route Finder preferences. Route results intentionally do not live here. */
 public final class TeleportViewerSettingsScreen extends Screen {
     private final Screen parent; private RouteFinderConfig cfg; private EditBox primary; private String status="";
     public TeleportViewerSettingsScreen(Screen parent){super(Component.translatable("earthmcroutefinder.teleport.settings.title"));this.parent=parent;}

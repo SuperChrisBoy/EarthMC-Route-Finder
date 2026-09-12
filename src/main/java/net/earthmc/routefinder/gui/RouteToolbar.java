@@ -6,6 +6,10 @@ import java.lang.reflect.Method;
 public final class RouteToolbar {
     private static Method top, unscale;
     public static boolean click(double x,double y,int width){
+        var player=net.minecraft.client.Minecraft.getInstance().player;
+        return click(x,y,width,player==null?0:player.getX(),player==null?0:player.getZ());
+    }
+    public static boolean click(double x,double y,int width,double targetX,double targetZ){
         try {
             if(top==null){
                 top=Class.forName("net.townymap.gui.MapToggleOverlay").getMethod("togglesTop",int.class);
@@ -21,6 +25,7 @@ public final class RouteToolbar {
                 config.iceRoadOverlayEnabled=!config.iceRoadOverlayEnabled;
                 config.save();
             }else if(row==1)IceRoadPlannerOverlay.toggle();
+            else if(row==2)TeleportViewerOverlay.show(targetX,targetZ);
             return row>=0;
         }catch(ReflectiveOperationException e){throw new IllegalStateException("Route side controls are incompatible with the base addon",e);}
     }

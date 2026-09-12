@@ -39,8 +39,8 @@ public abstract class RouteMapMixin {
         double x=event.x(),y=event.y(),s=routefinder$scale(),dim=RouteFinderMod.mapScale();
         if(!(s>0))return;
         double wx=(x-w/2.0)/s+cameraX*dim,wz=(y-h/2.0)/s+cameraZ*dim;
-        if(IceRoadOverlay.clickCard(x,y,w,h,RouteFinderMod.getConfig())||RouteToolbar.click(x,y,w)||(!IceRoadPlannerOverlay.active()&&TeleportViewerOverlay.click(x,y,w,h,RouteFinderMod.getConfig()))
-            ||(IceRoadPlannerOverlay.active()&&IceRoadPlannerOverlay.click(x,y,wx,wz,w))
+        if((IceRoadPlannerOverlay.active()&&IceRoadPlannerOverlay.click(x,y,wx,wz,w))
+            ||(!IceRoadPlannerOverlay.active()&&(IceRoadOverlay.clickCard(x,y,w,h,RouteFinderMod.getConfig())||RouteToolbar.click(x,y,w,cameraX*dim,cameraZ*dim)||TeleportViewerOverlay.click(x,y,w,h,RouteFinderMod.getConfig())))
             ||IceRoadOverlay.click(x,y,w,h,RouteFinderMod.getConfig())){ci.setReturnValue(true);return;}
         long now=System.nanoTime();double dx=x-routefinder$lastX,dy=y-routefinder$lastY;
         boolean doubleClick=now-routefinder$lastClick<350_000_000L&&dx*dx+dy*dy<=64;

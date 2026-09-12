@@ -10,7 +10,7 @@ public final class SideControlsSmoke {
         int top=(Integer)controls.getMethod("togglesTop",int.class).invoke(null,480);
         var settingsTop=controls.getDeclaredMethod("settingsTop",int.class);settingsTop.setAccessible(true);
         int sy=(Integer)settingsTop.invoke(null,480);
-        if(sy!=top+191||RouteSideLayout.hit(20,sy,top)!=-1)throw new IllegalStateException("Side column overlaps settings");
+        if(sy!=top+214||RouteSideLayout.hit(20,sy,top)!=-1)throw new IllegalStateException("Side column overlaps settings");
         int actualTop=(Integer)controls.getMethod("togglesTop",int.class).invoke(null,mc.getWindow().getGuiScaledHeight());
         float scale=(Float)Class.forName("net.townymap.gui.UiScale").getMethod("get").invoke(null);
         boolean roads=net.earthmc.routefinder.RouteFinderMod.getConfig().iceRoadOverlayEnabled;
@@ -23,6 +23,16 @@ public final class SideControlsSmoke {
             net.earthmc.routefinder.gui.RouteToolbar.click(x,y,mc.getWindow().getGuiScaledWidth());
         }
         Class<?> type=Class.forName("net.townymap.gui.TownyMapConfigScreen");
+        Class<?> viewer=net.earthmc.routefinder.gui.TeleportViewerOverlay.class;
+        Object viewerOpen=UiWorkflowSmoke.field(null,viewer,"open"),viewerMinimized=UiWorkflowSmoke.field(null,viewer,"minimized");
+        try{
+            UiWorkflowSmoke.set(viewer,"open",true);UiWorkflowSmoke.set(viewer,"minimized",true);
+            double x=8+12*scale,y=actualTop+(RouteSideLayout.rowY(actualTop,2)+10-actualTop)*scale;
+            if(!net.earthmc.routefinder.gui.RouteToolbar.click(x,y,mc.getWindow().getGuiScaledWidth())
+                ||!net.earthmc.routefinder.gui.TeleportViewerOverlay.open()
+                ||Boolean.TRUE.equals(UiWorkflowSmoke.field(null,viewer,"minimized")))
+                throw new IllegalStateException("Route Finder button did not restore results");
+        }finally{UiWorkflowSmoke.set(viewer,"open",viewerOpen);UiWorkflowSmoke.set(viewer,"minimized",viewerMinimized);}
         Screen screen=(Screen)type.getConstructor(Screen.class).newInstance((Object)null);
         mc.gui.setScreen(screen);
         var categories=type.getDeclaredField("categories");categories.setAccessible(true);

@@ -6,7 +6,9 @@ class OverlayViewportTest {
         for(int[] size:new int[][]{{456,257},{640,360},{853,486},{1280,720},{1920,1080}}){
             int w=size[0],h=size[1];
             var p=OverlayViewport.planner(w,h);
-            assertTrue((190+230)*p.scale()<(w-126)*0.5);
+            assertEquals(0,p.anchor());
+            assertEquals(0,p.x(0));
+            assertTrue((190+230)*p.scale()<w*0.5);
             var bar=PlannerToolbarLayout.of(p.width(),p.height());
             for(int i=0;i<bar.count();i++){
                 var r=bar.button(i);

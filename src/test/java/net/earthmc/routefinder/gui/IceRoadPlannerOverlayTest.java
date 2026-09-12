@@ -15,6 +15,24 @@ import org.junit.jupiter.api.Test;
 
 class IceRoadPlannerOverlayTest {
   @Test
+  void continuousDrawingAdvancesThroughNewAndExistingPointsWithoutBreakingOriginalRoute() {
+    for (int source = 0; source < 3; source++)
+      assertArrayEquals(new boolean[] {true, true, true, true, true, true, true, true},
+          IceRoadPlannerOverlay.continuousConnectionForTest(source));
+  }
+  @Test
+  void batchMoveAcrossLinesMovesSharedEndpointsOnceAndDeletesOnlySelectedEdges() {
+    assertArrayEquals(new double[] {15, 76, -3, 15, 15, 125, 92, 2, 0, 1},
+        IceRoadPlannerOverlay.batchSegmentEditForTest(false));
+  }
+
+  @Test
+  void batchHeightUpdatesVerticesConnectorsAndMarkersWithoutChangingHorizontalCoordinates() {
+    assertArrayEquals(new double[] {10, 12, 0, 10, 10, 120, 12, 2, 0, 1},
+        IceRoadPlannerOverlay.batchSegmentEditForTest(true));
+  }
+
+  @Test
   void websiteExportRemapsSparseIdsAndJunctionReferencesWithoutChangingInput() {
     JsonObject source = JsonParser.parseString("""
         {"stations":[
@@ -317,7 +335,7 @@ class IceRoadPlannerOverlayTest {
   }
 
   @Test
-  void ordinaryLineModePlacementsCreateStandalonePointsWithoutLines() {
+  void standalonePointHelperKeepsExplicitlySeparateRunsDisconnected() {
     List<double[]> points = new ArrayList<>();
     NavigableSet<Integer> breaks = new TreeSet<>();
     IceRoadPlannerOverlay.addStandalonePointForTest(points, breaks, 10, 20);

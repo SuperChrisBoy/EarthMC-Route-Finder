@@ -41,7 +41,7 @@ public final class IceRoadOverlay {
     private static double[] minimapPoint(double x,double z,double px,double pz,double cx,double cy,double scale,double sin,double cos){double dx=x-px,dz=z-pz;return new double[]{cx+(dx*cos-dz*sin)*scale,cy+(dx*sin+dz*cos)*scale};}
     /** Clips a screen-space segment to a circular minimap. Returns false when it misses entirely. */
     private static boolean clipCircle(double[] a,double[] b,double cx,double cy,double radius){double dx=b[0]-a[0],dy=b[1]-a[1],fx=a[0]-cx,fy=a[1]-cy,q=dx*dx+dy*dy;if(q<1e-6)return fx*fx+fy*fy<=radius*radius;double disc=Math.pow(2*(fx*dx+fy*dy),2)-4*q*(fx*fx+fy*fy-radius*radius);boolean ai=fx*fx+fy*fy<=radius*radius,bi=(b[0]-cx)*(b[0]-cx)+(b[1]-cy)*(b[1]-cy)<=radius*radius;if(!ai&&!bi&&disc<0)return false;if(disc>=0){double root=Math.sqrt(disc),linear=2*(fx*dx+fy*dy),t0=(-linear-root)/(2*q),t1=(-linear+root)/(2*q),lo=Math.max(0,Math.min(t0,t1)),hi=Math.min(1,Math.max(t0,t1));if(!ai&&!bi&&lo>hi)return false;double ax=a[0],ay=a[1];if(!ai){a[0]=ax+dx*lo;a[1]=ay+dy*lo;}if(!bi){b[0]=ax+dx*hi;b[1]=ay+dy*hi;}}return ai||bi||disc>=0;}
-    /** Selected Teleport Viewer result, projected and clipped to the minimap. */
+    /** Selected Route Finder result, projected and clipped to the minimap. */
     public static void renderSelectedRouteMinimap(GuiGraphicsExtractor g,TeleportViewerOverlay.MinimapRoute route,double playerX,double playerZ,double pixelsPerBlock,double angle,int mapX,int mapY,int size,boolean circular,RouteFinderConfig cfg){
         if(route==null||!cfg.teleportRouteLineVisible||pixelsPerBlock<=0)return;double cx=mapX+size/2.0,cy=mapY+size/2.0,radius=size/2.0,sin=Math.sin(angle),cos=Math.cos(angle);var trip=route.ice();
         g.enableScissor(mapX,mapY,mapX+size,mapY+size);try{
