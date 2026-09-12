@@ -3,6 +3,7 @@
   "id": "earthmcroutefinder",
   "version": "${version}",
   "name": "EarthMC Route Finder",
+  "icon": "assets/earthmcroutefinder/icon.png",
   "description": "Ice highways, road planning and Route Finder companion for EarthMC Map Addon.",
   "license": "Apache-2.0",
   "environment": "client",
