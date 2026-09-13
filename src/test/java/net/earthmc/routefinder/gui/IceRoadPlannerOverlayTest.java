@@ -15,6 +15,18 @@ import org.junit.jupiter.api.Test;
 
 class IceRoadPlannerOverlayTest {
   @Test
+  void norwegianRouteWithUnknownHeightImportsWithoutChangingSource() throws Exception {
+    JsonObject source = JsonParser.parseString(Files.readString(Path.of(
+        "src/main/resources/assets/earthmcroutefinder/ice_roads/highways.json"))).getAsJsonObject();
+    JsonObject original = source.deepCopy();
+    JsonObject result = IceRoadPlannerOverlay.importNetworkLineForTest(
+        source, "Norwegian Ice Boat Highway System", "Norway-Netherlands");
+    assertEquals("Norway-Netherlands", result.get("sourceLine").getAsString());
+    assertEquals(original, source);
+    assertDoesNotThrow(() -> IceRoadPlannerOverlay.websiteExportForTest(source));
+  }
+
+  @Test
   void editingExistingNetworkCopiesGeometryAndRemapsStationIdsWithoutDuplicatingLines() {
     JsonObject source = JsonParser.parseString("""
         {"stations":[{"id":0,"name":"Existing","type":"station","x":0,"z":0}],

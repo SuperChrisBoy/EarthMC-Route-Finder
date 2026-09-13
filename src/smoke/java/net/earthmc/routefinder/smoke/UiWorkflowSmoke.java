@@ -118,14 +118,25 @@ public final class UiWorkflowSmoke {
                 throw new IllegalStateException("Station on inactive draft line was not selected");
             call(null,planner,"clearMarkerSelection",new Class[]{});
             set(planner,"dragHits",List.of());set(IceRoadOverlay.class,"hits",List.of());
-            var edge=network.segments().stream().filter(e->!IceRoadPlannerOverlay.hidesNetworkLine(e.company(),e.line())).findFirst().orElseThrow();
+            var edge=network.segments().stream().filter(e->e.line().equals("Norway-Netherlands")).findFirst().orElseThrow();
             double cx=(edge.x1()+edge.x2())/2,cz=(edge.z1()+edge.z2())/2;
             set(planner,"viewCamX",cx);set(planner,"viewCamZ",cz);
             if(!IceRoadPlannerOverlay.click(x,y,cx,cz,w)||!Boolean.TRUE.equals(call(null,planner,"validSelectedSegment",new Class[]{})))
                 throw new IllegalStateException("Existing network line was not selected");
+            if(!IceRoadPlannerOverlay.hidesNetworkLine(edge.company(),edge.line()))
+                throw new IllegalStateException("Imported Norwegian source line is still visible");
+            set(planner,"showExistingRoads",false);
+            if(IceRoadPlannerOverlay.existingRoadsVisible() || !IceRoadPlannerOverlay.hidesNetworkStation(station)
+                || !IceRoadPlannerOverlay.hidesNetworkLine("Other", "Road"))
+                throw new IllegalStateException("Existing road visibility toggle failed");
+            set(planner,"showExistingRoads",true);
+            if(!IceRoadPlannerOverlay.existingRoadsVisible() || IceRoadPlannerOverlay.hidesNetworkLine("Other", "Road")
+                || !IceRoadPlannerOverlay.hidesNetworkLine(edge.company(),edge.line()))
+                throw new IllegalStateException("Showing roads restored edited source geometry");
             RouteFinderMod.LOGGER.info("ROUTE_EXISTING_NETWORK_SELECTION_SMOKE_OK");
         }finally{
             cfg.iceRoadOverlayEnabled=enabled;
+            set(planner,"showExistingRoads",true);
             set(planner,"dragHits",List.of());set(planner,"segmentHits",List.of());
             set(IceRoadOverlay.class,"hits",List.of());set(planner,"viewTransformValid",false);
         }

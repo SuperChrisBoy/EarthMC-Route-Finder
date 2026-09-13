@@ -68,3 +68,5 @@ See [validation results](docs/VALIDATION.md) for the tested versions and limits.
 On the `1.21.11` branch, `./gradlew productionSmoke -PsmokeTest` also tests the remapped release JAR in an isolated production client. Smoke test JARs are test tooling and must not be installed for normal play.
 
 In the planner, **Draw** connects each click to the previous endpoint. Click an existing point with Draw to continue from there; **Esc** finishes the current line. **Start new line on branch** begins a separate run. Ctrl/Shift-click segments or line names to multi-select, or Ctrl+A to select all lines. The selection inspector can set height, move by XYZ offset, or delete segments together. Ctrl+Z undoes the whole edit.
+
+The planner left pane has an **Existing roads: ON/OFF** toggle. Draft routes stay visible independently, and imported routes replace their original map geometry while the editor is open. Source heights marked unknown (for example, Norway?Netherlands) use Y=64 in the editable copy; adjust the height in the inspector as needed.

@@ -48,6 +48,7 @@ public final class IceRoadPlannerOverlay {
       HEADER_H = 28,
       TOOL_W = 68,
       BRANCH_PANEL_H = 290;
+  private static boolean showExistingRoads = true;
   private static boolean active,
       loaded,
       toolDropdown,
@@ -1062,9 +1063,14 @@ public final class IceRoadPlannerOverlay {
     return !handledOnPress;
   }
 
+  public static boolean existingRoadsVisible() {
+    return active ? showExistingRoads : RouteFinderMod.getConfig().iceRoadOverlayEnabled;
+  }
+
   /** A draft copy replaces its source geometry only while this editor is open. */
   public static boolean hidesNetworkLine(String company, String name) {
     if (!active) return false;
+    if (!showExistingRoads) return true;
     for (LineData line : draft().lines)
       if (Objects.equals(company, line.sourceCompany) && Objects.equals(name, line.sourceLine)
           || company.equals(line.company) && name.equals(line.line)) return true;
@@ -1073,6 +1079,7 @@ public final class IceRoadPlannerOverlay {
 
   public static boolean hidesNetworkStation(IceRoadNetwork.Station station) {
     if (!active) return false;
+    if (!showExistingRoads) return true;
     for (LineData line : draft().lines)
       if ("$station".equals(line.sourceCompany) && Integer.toString(station.id()).equals(line.sourceLine)) return true;
     if (station.lines().isEmpty()) return false;
@@ -1090,7 +1097,7 @@ public final class IceRoadPlannerOverlay {
   }
 
   private static boolean selectNetworkAt(double mx, double my) {
-    if (!viewTransformValid || !RouteFinderMod.getConfig().iceRoadOverlayEnabled
+    if (!viewTransformValid || !existingRoadsVisible()
         || editorState.tool() == EditorTool.MEASURE) return false;
     IceRoadNetwork network = IceRoadNetwork.get();
     IceRoadNetwork.Station station = IceRoadOverlay.networkStationAt(mx, my);
@@ -1122,7 +1129,7 @@ public final class IceRoadPlannerOverlay {
       double height = 64;
       for (JsonElement entry : source.getAsJsonArray("stations")) {
         JsonObject raw = entry.getAsJsonObject();
-        if (raw.get("id").getAsInt() == station.id() && raw.has("y1")) height = raw.get("y1").getAsDouble();
+        if (raw.get("id").getAsInt() == station.id()) height = numericHeight(raw.get("y1"), 64);
       }
       imported.stations.add(new Station(id, station.name(), station.type(), station.x(), height, station.z()));
       imported.branches.getFirst().stationIds.add(id);
@@ -4740,6 +4747,16 @@ public final class IceRoadPlannerOverlay {
     return d;
   }
 
+  // Public datasets also contain unknown heights such as "???" and ranges.
+  private static double numericHeight(JsonElement value, double fallback) {
+    try {
+      double height = value == null || value.isJsonNull() ? fallback : value.getAsDouble();
+      return Double.isFinite(height) ? height : fallback;
+    } catch (NumberFormatException | UnsupportedOperationException | IllegalStateException e) {
+      return fallback;
+    }
+  }
+
   private static LineData parseLine(
       JsonObject root, String companyName, String lineName, JsonObject route, JsonObject state) {
     LineData line = new LineData();
@@ -4767,7 +4784,7 @@ public final class IceRoadPlannerOverlay {
               ? branchYs.get(entry.getKey()).getAsDouble()
               : root.has("plannerBranchYs") && root.getAsJsonObject("plannerBranchYs").has(entry.getKey())
               ? root.getAsJsonObject("plannerBranchYs").get(entry.getKey()).getAsDouble()
-              : (route.has("y") ? route.get("y").getAsDouble() : 64);
+              : (numericHeight(route.get("y"), 64));
       b.visible =
           branchVisibility == null
               || !branchVisibility.has(entry.getKey())
@@ -4817,8 +4834,8 @@ public final class IceRoadPlannerOverlay {
               o.has("type") ? o.get("type").getAsString() : "station",
               o.get("x").getAsDouble(),
               o.has("y1")
-                  ? o.get("y1").getAsDouble()
-                  : (route.has("y") ? route.get("y").getAsDouble() : 64),
+                  ? numericHeight(o.get("y1"), numericHeight(route.get("y"), 64))
+                  : (numericHeight(route.get("y"), 64)),
               o.get("z").getAsDouble()));
     }
     line.branch =
@@ -5238,8 +5255,8 @@ public final class IceRoadPlannerOverlay {
         PROJECT_X + 10, 86, 0xFFFFFFFF, false);
     button(g, PROJECT_X + PROJECT_W - 64, 82, 56, "Rename");
     storeActiveLine(d);
-    int by = 230;
-    int pageRows = Math.max(1, (bottom - 194 - 230) / 20);
+    int by = 252;
+    int pageRows = Math.max(1, (bottom - 194 - 252) / 20);
     List<NetworkRow> allRows = networkRows(d);
     networkPage = Math.clamp(networkPage, 0, Math.max(0, (allRows.size() - 1) / pageRows));
       for (NetworkRow row : allRows.subList(Math.min(allRows.size(), networkPage * pageRows), allRows.size())) {
@@ -5294,6 +5311,7 @@ public final class IceRoadPlannerOverlay {
     g.fill(PROJECT_X, 104, PROJECT_X + PROJECT_W, 124, 0xFF294D78);
     g.text(Minecraft.getInstance().font, "ICE ROUTE TOOLS", PROJECT_X + 8, 110, -1, false);
     button(g, PROJECT_X + 8, 210, PROJECT_W - 16, "Route Finder");
+    button(g, PROJECT_X + 8, 232, PROJECT_W - 16, "Existing roads: " + (showExistingRoads ? "ON" : "OFF"));
     var layout=PlannerToolbarLayout.of(sw,sh);
     for(int i=0;i<layout.count();i++){
       var rect=layout.button(i);
@@ -5540,6 +5558,10 @@ public final class IceRoadPlannerOverlay {
     }
     if (mx >= PROJECT_X && mx <= PROJECT_X + PROJECT_W && my >= 36 && my < bottom) {
       Draft d = draft();
+      if (my >= 232 && my < 250) {
+        showExistingRoads = !showExistingRoads;
+        return true;
+      }
       if (my >= 210 && my < 228) {
         toggle();
         TeleportViewerOverlay.show(viewCamX, viewCamZ);
@@ -5559,9 +5581,9 @@ public final class IceRoadPlannerOverlay {
         return true;
       }
       List<NetworkRow> rows = networkRows(d);
-      int visibleRows=Math.min(rows.size(),Math.max(0,(bottom-194-230)/20));
-      if (my >= 230 && my < 230 + visibleRows * 20) {
-        int rowIndex = networkPage * visibleRows + ((int) my - 230) / 20;
+      int visibleRows=Math.min(rows.size(),Math.max(0,(bottom-194-252)/20));
+      if (my >= 252 && my < 252 + visibleRows * 20) {
+        int rowIndex = networkPage * visibleRows + ((int) my - 252) / 20;
         if (rowIndex < rows.size()) {
           NetworkRow row = rows.get(rowIndex);
           if (row.line && mx < PROJECT_X + 58) {
@@ -5599,7 +5621,7 @@ public final class IceRoadPlannerOverlay {
         return true;
       }
       if (my >= bottom - 188 && my < bottom - 170) {
-        int count = Math.max(1, (bottom - 194 - 230) / 20);
+        int count = Math.max(1, (bottom - 194 - 252) / 20);
         networkPage = (networkPage + 1) % Math.max(1, (rows.size() + count - 1) / count);
         return true;
       }
