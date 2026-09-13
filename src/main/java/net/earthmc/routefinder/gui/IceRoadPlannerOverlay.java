@@ -4409,7 +4409,24 @@ public final class IceRoadPlannerOverlay {
   }
 
   static JsonObject websiteExportForTest(JsonObject source) {
+    return websiteExportFromDocument(source);
+  }
+
+  private static JsonObject websiteExportFromDocument(JsonObject source) {
+    if (source.has("drafts")) {
+      JsonArray saved = source.getAsJsonArray("drafts");
+      if (saved.isEmpty()) return websiteJson(new Draft("Empty"), true);
+      int index = source.has("activeDraft") ? source.get("activeDraft").getAsInt() : 0;
+      source = saved.get(Math.clamp(index, 0, saved.size() - 1)).getAsJsonObject();
+    }
     return websiteJson(parseDraft(source), true);
+  }
+
+  /** Keep the lossless library and a website-readable view of its selected draft together. */
+  static void addWebsiteView(JsonObject library) {
+    JsonObject website = websiteExportFromDocument(library);
+    library.add("lines", website.get("lines"));
+    library.add("stations", website.get("stations"));
   }
 
   static JsonObject unassignedMarkerExportForTest() {
@@ -4943,6 +4960,7 @@ public final class IceRoadPlannerOverlay {
   private static void saveLibraryQuiet() {
     Path path = libraryPath(), temporary = path.resolveSibling(path.getFileName() + ".tmp");
     JsonObject next = libraryJson();
+    addWebsiteView(next);
     try {
       Files.createDirectories(path.getParent());
       if (Files.isRegularFile(path)) {

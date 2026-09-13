@@ -15,6 +15,34 @@ import org.junit.jupiter.api.Test;
 
 class IceRoadPlannerOverlayTest {
   @Test
+  void savedLibraryIncludesWebsiteViewOfActiveEditedRouteWithoutLosingPlannerData() throws Exception {
+    JsonObject library = JsonParser.parseString(Files.readString(Path.of(
+        "src/test/resources/ice-roads/edited-norway-library.json"))).getAsJsonObject();
+    JsonObject before = library.deepCopy();
+    assertFalse(library.has("lines")); // The website's Object.keys(dataset.lines) fails here.
+    IceRoadPlannerOverlay.addWebsiteView(library);
+    assertEquals(before.get("drafts"), library.get("drafts"));
+    assertEquals(before.get("activeDraft"), library.get("activeDraft"));
+    JsonObject exported = IceRoadPlannerOverlay.websiteExportForTest(library);
+    assertEquals(exported.get("lines"), library.get("lines"));
+    assertEquals(exported.get("stations"), library.get("stations"));
+    JsonObject branches = exported.getAsJsonObject("lines")
+        .getAsJsonObject("Norwegian Ice Boat Highway System")
+        .getAsJsonObject("Norway-Netherlands").getAsJsonObject("branches");
+    assertTrue(branches.has("Main line Connection 14"));
+    assertTrue(branches.has("Main line Line 17"));
+    assertFalse(exported.toString().contains("plannerLinks"));
+    assertFalse(exported.toString().contains("plannerBreaks"));
+    assertEquals(3, exported.getAsJsonArray("stations").size());
+    for (int i = 0; i < 3; i++)
+      assertEquals(i, exported.getAsJsonArray("stations").get(i).getAsJsonObject().get("id").getAsInt());
+    Files.createDirectories(Path.of("build/website-export-check"));
+    Files.writeString(Path.of("build/website-export-check/norway-website.json"),
+        new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(exported));
+    Files.writeString(Path.of("build/website-export-check/norway-library.json"), library.toString());
+  }
+
+  @Test
   void norwegianRouteWithUnknownHeightImportsWithoutChangingSource() throws Exception {
     JsonObject source = JsonParser.parseString(Files.readString(Path.of(
         "src/main/resources/assets/earthmcroutefinder/ice_roads/highways.json"))).getAsJsonObject();

@@ -70,3 +70,5 @@ On the `1.21.11` branch, `./gradlew productionSmoke -PsmokeTest` also tests the 
 In the planner, **Draw** connects each click to the previous endpoint. Click an existing point with Draw to continue from there; **Esc** finishes the current line. **Start new line on branch** begins a separate run. Ctrl/Shift-click segments or line names to multi-select, or Ctrl+A to select all lines. The selection inspector can set height, move by XYZ offset, or delete segments together. Ctrl+Z undoes the whole edit.
 
 The planner left pane has an **Existing roads: ON/OFF** toggle. Draft routes stay visible independently, and imported routes replace their original map geometry while the editor is open. Source heights marked unknown (for example, Norway?Netherlands) use Y=64 in the editable copy; adjust the height in the inspector as needed.
+
+Use **Export > Website JSON** for a standalone file accepted by the original ice-highways-map website. The planner autosave also includes website-compatible `lines` and `stations` for the active draft, alongside its lossless `drafts` library. Breaks and connector edges are converted to standard website branches in that view.
