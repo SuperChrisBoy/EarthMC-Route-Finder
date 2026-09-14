@@ -19,6 +19,10 @@ import org.lwjgl.glfw.GLFW;
 /** In-map editor and website-compatible highways.json exporter. */
 public final class IceRoadPlannerOverlay {
   private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+  private static String lastAutomaticExport;
+  private static String exportConflict;
+  private static String lastConflictReport;
+  private static IceRoadNetwork lastExportNetwork;
   private static final String[] TYPES = {
     "line", "station", "semi1", "semi2", "semi3", "semi4", "jct", "inter1", "inter2", "elev-ew",
     "elev-we"
@@ -215,6 +219,8 @@ public final class IceRoadPlannerOverlay {
   }
 
   private static final class Draft {
+    JsonObject upstreamBase = IceRoadNetwork.get().editorSource();
+    JsonArray removedNetworkLines = new JsonArray();
     String name,
         company = "My Highway",
         line = "Planned Line",
@@ -4123,6 +4129,12 @@ public final class IceRoadPlannerOverlay {
     storeActiveLine(d);
     index = Math.clamp(index, 0, d.lines.size() - 1);
     LineData removed = d.lines.remove(index);
+    if (removed.sourceCompany != null) {
+      JsonObject deleted = new JsonObject();
+      deleted.addProperty("sourceCompany", removed.sourceCompany);
+      deleted.addProperty("sourceLine", removed.sourceLine);
+      d.removedNetworkLines.add(deleted);
+    }
     if (d.lines.isEmpty()) {
       LineData replacement = new LineData();
       replacement.company = removed.company;
@@ -4187,8 +4199,8 @@ public final class IceRoadPlannerOverlay {
     }
     redoHistory.addLast(libraryJson().deepCopy());
     while (redoHistory.size() > 100) redoHistory.removeFirst();
-    restoreSnapshot(undoHistory.removeLast());
     editorState.changed();
+    restoreSnapshot(undoHistory.removeLast());
     notice("Undid last change");
   }
 
@@ -4199,8 +4211,8 @@ public final class IceRoadPlannerOverlay {
     }
     undoHistory.addLast(libraryJson().deepCopy());
     while (undoHistory.size() > 100) undoHistory.removeFirst();
-    restoreSnapshot(redoHistory.removeLast());
     editorState.changed();
+    restoreSnapshot(redoHistory.removeLast());
     notice("Redid last change");
   }
 
@@ -4247,7 +4259,21 @@ public final class IceRoadPlannerOverlay {
   }
 
   static JsonObject websiteJson() {
-    return websiteJson(draft(), true);
+    return fullMapJson(libraryJson());
+  }
+
+  static JsonObject fullMapJson(JsonObject library) {
+    JsonObject selected = library.getAsJsonArray("drafts").get(
+        library.get("activeDraft").getAsInt()).getAsJsonObject();
+    JsonArray replacements = selected.getAsJsonArray("plannerLineStates").deepCopy();
+    if (selected.has("removedNetworkLines")) replacements.addAll(selected.getAsJsonArray("removedNetworkLines"));
+    if (!selected.has("upstreamBase"))
+      throw new UpstreamMapMerge.Conflict("missing original map snapshot; reapply this legacy draft in a new draft");
+    JsonObject base = selected.getAsJsonObject("upstreamBase");
+    JsonObject local = FullMapExport.merge(base, websiteExportFromDocument(library), replacements);
+    JsonObject result = UpstreamMapMerge.merge(base, local, IceRoadNetwork.get().editorSource());
+    normalizeWebsiteStationIds(result);
+    return result;
   }
 
   static JsonObject websiteJsonForTest() {
@@ -4523,6 +4549,38 @@ public final class IceRoadPlannerOverlay {
   }
 
   private static void addBranchJson(JsonObject out, Draft d, Branch b, boolean splitRuns) {
+    if (splitRuns) {
+      List<List<WebsiteGeometry.Vertex>> runs = new ArrayList<>();
+      List<WebsiteGeometry.Vertex> run = new ArrayList<>();
+      for (int i = 0; i < b.vertices.size(); i++) {
+        if (b.breaks.contains(i)) {
+          runs.add(run);
+          run = new ArrayList<>();
+        }
+        Point point = b.vertices.get(i);
+        run.add(new WebsiteGeometry.Vertex(point.x, point.z, pointY(point, b)));
+      }
+      runs.add(run);
+      for (Link link : b.links)
+        runs.add(List.of(
+            new WebsiteGeometry.Vertex(link.a.x, link.a.z, pointY(link.a, b)),
+            new WebsiteGeometry.Vertex(link.b.x, link.b.z, pointY(link.b, b))));
+      List<List<WebsiteGeometry.Vertex>> paths = WebsiteGeometry.compact(runs);
+      Set<String> reserved = new HashSet<>(out.keySet());
+      for (Branch original : d.branches) reserved.add(original.name);
+      int suffix = 2;
+      for (int i = 0; i < paths.size(); i++) {
+        String name = b.name;
+        if (i > 0) {
+          do { name = b.name + " Line " + suffix++; } while (reserved.contains(name));
+        }
+        reserved.add(name);
+        List<Point> points = paths.get(i).stream()
+            .map(p -> new Point(p.x(), p.z(), p.y())).toList();
+        out.add(name, branchJson(d, b, points, i == 0 ? b.stationIds : List.of()));
+      }
+      return;
+    }
     if (!splitRuns || b.breaks.isEmpty()) {
       out.add(b.name, branchJson(d, b, b.vertices, b.stationIds));
       if (!splitRuns) {
@@ -4546,28 +4604,7 @@ public final class IceRoadPlannerOverlay {
           saved.add("plannerLinks", links);
         }
       }
-    } else {
-      List<Integer> cuts = new ArrayList<>(b.breaks);
-      cuts.add(b.vertices.size());
-      int from = 0, run = 1;
-      for (int to : cuts) {
-        if (to > from) {
-          String name = run == 1 ? b.name : b.name + " Line " + run;
-          out.add(
-              name,
-              branchJson(d, b, b.vertices.subList(from, to), run == 1 ? b.stationIds : List.of()));
-          run++;
-        }
-        from = to;
-      }
     }
-    if (splitRuns)
-      for (int i = 0; i < b.links.size(); i++) {
-        Link link = b.links.get(i);
-        out.add(
-            b.name + " Connection " + (i + 1),
-            branchJson(d, b, List.of(link.a, link.b), List.of()));
-      }
   }
 
   private static JsonArray pointJson(Point p) {
@@ -4601,6 +4638,8 @@ public final class IceRoadPlannerOverlay {
       storeActiveLine(d);
       JsonObject o = websiteJson(d, false);
       o.addProperty("draftName", d.name);
+      if (d.upstreamBase != null) o.add("upstreamBase", d.upstreamBase.deepCopy());
+      o.add("removedNetworkLines", d.removedNetworkLines.deepCopy());
       o.addProperty("activeLine", d.activeLine);
       o.addProperty("showMarkerInfo", d.coordinateMode != 3 && d.coordinateMode != 4);
       o.addProperty("coordinateMode", d.coordinateMode);
@@ -4720,6 +4759,8 @@ public final class IceRoadPlannerOverlay {
     String name = root.has("draftName") ? root.get("draftName").getAsString() : "Draft";
     JsonObject lines = root.getAsJsonObject("lines");
     Draft d = new Draft(name);
+    d.upstreamBase = root.has("upstreamBase") ? root.getAsJsonObject("upstreamBase").deepCopy() : null;
+    if (root.has("removedNetworkLines")) d.removedNetworkLines = root.getAsJsonArray("removedNetworkLines").deepCopy();
     d.showMarkerInfo = !root.has("showMarkerInfo") || root.get("showMarkerInfo").getAsBoolean();
     d.coordinateMode =
         root.has("coordinateMode")
@@ -4943,21 +4984,22 @@ public final class IceRoadPlannerOverlay {
   }
 
   private static void tickAutosave() {
+    IceRoadNetwork network = IceRoadNetwork.get();
+    if (lastExportNetwork != null && lastExportNetwork != network) {
+      editorState.changed();
+      autosave.changed(System.currentTimeMillis());
+    }
+    lastExportNetwork = network;
     if (editorState.dirty() && autosave.shouldSave(System.currentTimeMillis())) {
       saveLibraryQuiet();
-      editorState.saved();
-      autosave.saved();
     }
   }
 
   private static void saveLibrary() {
-    saveLibraryQuiet();
-    editorState.saved();
-    autosave.saved();
-    notice("Saved " + draft().name);
+    if (saveLibraryQuiet()) notice("Saved " + draft().name);
   }
 
-  private static void saveLibraryQuiet() {
+  private static boolean saveLibraryQuiet() {
     Path path = libraryPath(), temporary = path.resolveSibling(path.getFileName() + ".tmp");
     JsonObject next = libraryJson();
     addWebsiteView(next);
@@ -4981,12 +5023,57 @@ public final class IceRoadPlannerOverlay {
       } catch (AtomicMoveNotSupportedException ignored) {
         Files.move(temporary, path, StandardCopyOption.REPLACE_EXISTING);
       }
+      String fullMap = GSON.toJson(fullMapJson(next));
+      exportConflict = null;
+      if (!fullMap.equals(lastAutomaticExport)) {
+        Path directory = plannerRoot().resolve("json");
+        Files.createDirectories(directory);
+        Path staged = Files.createTempFile(directory, "full-map-", ".tmp");
+        try {
+          Files.writeString(staged, fullMap);
+          // Unique names keep other sessions and manual exports from being overwritten.
+          Files.move(staged, staged.resolveSibling(staged.getFileName().toString().replace(".tmp", ".json")));
+          lastAutomaticExport = fullMap;
+        } finally {
+          Files.deleteIfExists(staged);
+        }
+      }
+      editorState.saved();
+      autosave.saved();
+      return true;
+    } catch (UpstreamMapMerge.Conflict conflict) {
+      exportConflict = conflict.getMessage();
+      editorState.saved();
+      autosave.saved();
+      JsonObject report = new JsonObject();
+      report.addProperty("conflict", exportConflict);
+      report.addProperty("resolution", "Compare the saved draft and upstream map. Reapply the intended edits in a new draft based on the updated map.");
+      report.add("library", next);
+      report.add("upstream", IceRoadNetwork.get().editorSource());
+      String content = GSON.toJson(report);
+      try {
+        if (!content.equals(lastConflictReport)) {
+          Path directory = plannerRoot().resolve("conflicts");
+          Files.createDirectories(directory);
+          Path reportPath = Files.createTempFile(directory, "map-conflict-", ".json");
+          Files.writeString(reportPath, content);
+          lastConflictReport = content;
+        }
+      } catch (IOException ignored) {
+        notice("Draft saved; conflict report could not be written");
+        return false;
+      }
+      notice("Draft saved; JSON export blocked: " + exportConflict);
+      return false;
     } catch (Exception exception) {
-      notice("Could not safely save draft library");
+      editorState.changed();
+      autosave.changed(System.currentTimeMillis());
+      notice("Could not safely save library or full map JSON; retrying");
       try {
         Files.deleteIfExists(temporary);
       } catch (IOException ignored) {
       }
+      return false;
     }
   }
 
@@ -5013,17 +5100,27 @@ public final class IceRoadPlannerOverlay {
   }
 
   private static void export() {
+    try {
     Path p = exportPath();
     write(p, websiteJson());
     copyPath(p);
     notice("JSON saved: " + p + " (path copied)");
+    } catch (UpstreamMapMerge.Conflict conflict) {
+      exportConflict = conflict.getMessage();
+      saveLibraryQuiet();
+    }
   }
 
   private static void copyJson() {
     Minecraft mc = Minecraft.getInstance();
     if (mc == null) return;
+    try {
     GLFW.glfwSetClipboardString(mc.getWindow().handle(), GSON.toJson(websiteJson()));
     notice("Website JSON copied to clipboard");
+    } catch (UpstreamMapMerge.Conflict conflict) {
+      exportConflict = conflict.getMessage();
+      saveLibraryQuiet();
+    }
   }
 
   private static void exportGeoJson() {
@@ -5253,10 +5350,10 @@ public final class IceRoadPlannerOverlay {
     button(g,draftButton.x(),draftButton.y(),draftButton.width(),Minecraft.getInstance().font.plainSubstrByWidth(d.name,draftButton.width()-18)+" v");
     if(draftButton.x()+draftButton.width()+70<right-274)g.text(
         Minecraft.getInstance().font,
-        editorState.dirty() ? "Saving..." : "Saved",
+        exportConflict != null ? "Export conflict" : editorState.dirty() ? "Saving..." : "Saved",
         draftButton.x()+draftButton.width()+10,
         13,
-        editorState.dirty() ? 0xFFFFFF77 : 0xFF77FFAA,
+        exportConflict != null ? 0xFFFF7777 : editorState.dirty() ? 0xFFFFFF77 : 0xFF77FFAA,
         false);
     button(g, right - 274, 9, 78, "Exit editor");
     button(g, right - 188, 9, 86, "Validate");

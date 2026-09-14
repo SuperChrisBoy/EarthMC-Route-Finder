@@ -29,8 +29,10 @@ class IceRoadPlannerOverlayTest {
     JsonObject branches = exported.getAsJsonObject("lines")
         .getAsJsonObject("Norwegian Ice Boat Highway System")
         .getAsJsonObject("Norway-Netherlands").getAsJsonObject("branches");
-    assertTrue(branches.has("Main line Connection 14"));
-    assertTrue(branches.has("Main line Line 17"));
+    assertTrue(branches.size() < 20, "Connected Norway geometry should be consolidated");
+    assertTrue(branches.getAsJsonObject("Main line").getAsJsonArray("vertices").size() > 2);
+    for (var entry : branches.entrySet())
+      assertTrue(entry.getValue().getAsJsonObject().getAsJsonArray("vertices").size() >= 2);
     assertFalse(exported.toString().contains("plannerLinks"));
     assertFalse(exported.toString().contains("plannerBreaks"));
     assertEquals(3, exported.getAsJsonArray("stations").size());
