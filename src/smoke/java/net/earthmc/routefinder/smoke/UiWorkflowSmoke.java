@@ -143,6 +143,25 @@ public final class UiWorkflowSmoke {
     }
     public static void verify(Minecraft mc) throws ReflectiveOperationException{
         Screen parent=mc.gui.screen();
+        int previousHudSize=RouteFinderMod.getConfig().votePartyHudScale;
+        try {
+            RouteFinderMod.getConfig().votePartyHudScale=150;
+            var routeSettings=new TeleportViewerSettingsScreen(parent);
+            mc.gui.setScreen(routeSettings);
+            press(routeSettings,"Vote Party...");
+            if(!(mc.gui.screen() instanceof VotePartySettingsScreen))throw new IllegalStateException("Vote settings did not open");
+            var voteSettings=mc.gui.screen();
+            var sizeSlider=voteSettings.children().stream().filter(c->c instanceof VotePartySizeSlider).map(c->(VotePartySizeSlider)c).findFirst().orElseThrow();
+            if(!sizeSlider.getMessage().getString().contains("150%"))throw new IllegalStateException("HUD size slider lost saved value");
+            press(voteSettings,"Reset size");
+            if(RouteFinderMod.getConfig().votePartyHudScale!=60||RouteFinderConfig.load().votePartyHudScale!=60)throw new IllegalStateException("HUD size reset not persisted");
+            press(voteSettings,"Done");
+            if(mc.gui.screen()!=routeSettings)throw new IllegalStateException("HUD settings lost parent screen");
+        } finally {
+            RouteFinderMod.getConfig().votePartyHudScale=previousHudSize;
+            RouteFinderMod.getConfig().save();
+            mc.gui.setScreen(parent);
+        }
         CoordinatesScreen.XYZ[] applied={null};
         var screen=new CoordinatesScreen(parent,"Edit XYZ","-12.25","64","45.75",false,v->applied[0]=v);
         mc.gui.setScreen(screen);

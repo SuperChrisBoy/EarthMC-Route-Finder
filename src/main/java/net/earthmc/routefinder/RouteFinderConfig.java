@@ -5,6 +5,8 @@ import java.nio.file.*;
 import java.io.IOException;
 public final class RouteFinderConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    public boolean votePartyHudEnabled = true;
+    public int votePartyHudScale = 60;
     public boolean teleportViewerEnabled = true;
     public boolean teleportAllowNonEarthMc = false;
     public boolean teleportMapClickAction = true;
@@ -40,6 +42,7 @@ public final class RouteFinderConfig {
         return new RouteFinderConfig();
     }
     private void sanitize(){
+        votePartyHudScale=Math.clamp(votePartyHudScale,30,150);
         iceRoadLineWidth=Math.clamp(iceRoadLineWidth,1,9);iceRoadMarkerSize=Math.clamp(iceRoadMarkerSize,8,24);
         iceRoadStationFilter=Math.clamp(iceRoadStationFilter,0,2);teleportCommandAction=Math.clamp(teleportCommandAction,0,2);
         if(teleportAccessibilitySave==null)teleportAccessibilitySave="";

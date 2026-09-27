@@ -190,4 +190,18 @@
   "earthmcroutefinder.controls.planner": "Road planner",
   "earthmcroutefinder.controls.route_finder": "Route Finder",
   "earthmcroutefinder.controls.settings": "Route settings"
+,
+  "earthmcroutefinder.vote_party.title": "EarthMC Vote Party",
+  "earthmcroutefinder.vote_party.toggle": "Vote Party HUD: %s",
+  "earthmcroutefinder.vote_party.progress": "%s%% - %s votes left",
+  "earthmcroutefinder.vote_party.stale": "%s%% - %s left (stale)",
+  "earthmcroutefinder.vote_party.loading": "Loading vote progress...",
+  "earthmcroutefinder.vote_party.unavailable": "Unavailable - retrying..."
+,
+  "earthmcroutefinder.vote_party.settings": "Vote Party...",
+  "earthmcroutefinder.vote_party.size_label": "Vote Party HUD size",
+  "earthmcroutefinder.vote_party.size": "HUD size: %s%%",
+  "earthmcroutefinder.vote_party.reset_size": "Reset size"
+,
+  "key.earthmcroutefinder.vote_party": "Toggle Vote Party HUD"
 }

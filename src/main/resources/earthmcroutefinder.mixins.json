@@ -7,7 +7,9 @@
     "RouteMapMixin",
     "RouteMinimapMixin",
     "RouteSideControlsMixin",
-    "RouteSettingsMixin"
+    "RouteSettingsMixin",
+    "BossHealthOverlayAccessor",
+    "PlayerTabOverlayAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

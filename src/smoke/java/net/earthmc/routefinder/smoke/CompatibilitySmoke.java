@@ -31,6 +31,11 @@ public final class CompatibilitySmoke implements ClientModInitializer {
                 Class<?> minimap=Class.forName("net.townymap.render.TownyMinimapOverlay");
                 minimap.getDeclaredMethod("minimapAngle",xaero.hud.minimap.module.MinimapSession.class,net.minecraft.client.Minecraft.class);
                 minimap.getDeclaredMethod("isCircularMinimap",xaero.hud.minimap.module.MinimapSession.class);
+                // Verify the mapped accessors used to avoid vanilla top-center overlays.
+                ((net.earthmc.routefinder.mixin.BossHealthOverlayAccessor)mc.gui.hud.getBossOverlay()).routefinder$events();
+                ((net.earthmc.routefinder.mixin.PlayerTabOverlayAccessor)mc.gui.hud.getTabList()).routefinder$visible();
+                var voteKey=Arrays.stream(mc.options.keyMappings).filter(k->k.getName().equals("key.earthmcroutefinder.vote_party")).findFirst().orElseThrow();
+                if(voteKey.getDefaultKey().getValue()!=org.lwjgl.glfw.GLFW.GLFW_KEY_V)throw new IllegalStateException("Wrong vote-party default key");
                 SideControlsSmoke.verify(mc);
                 StationPopupSmoke.verify();
                 AccessibilitySavesSmoke.verify();

@@ -23,6 +23,8 @@ Use one Route Finder JAR matching your game version. This project does not repla
 Open Xaero's World Map on EarthMC. The left-side button column provides **Ice roads**, **Road planner**, and **Route Finder** below Counter. Route Finder opens routes to the map center, or restores your existing results. The planner fills the left edge and hides the map buttons while editing. Use **Exit editor** to return, or **Route Finder** in the planner to switch to route results. Open **Settings → Route settings** for route and teleport options. Double-click a map location to open Route Finder.
 
 - `/routefinder` opens settings.
+- **V** toggles the vote-party HUD during gameplay and saves its state. Rebind **Toggle Vote Party HUD** in **Options > Controls > Key Binds > Miscellaneous**. Typing in menus or chat does not toggle the HUD.
+- `/routefinder voteparty` toggles the EarthMC vote-party HUD (also available in Route Finder settings). The HUD defaults to a compact 60% size. Adjust the saved size from 30% to 150% in **Route settings > Vote Party HUD size**, or **Mod Menu > Route Finder > Vote Party...** (live preview and Reset size). The HUD scales with the window and GUI scale, stays at top center below visible boss bars, and hides while the Tab player list is open. The small progress bar shows percentage and votes remaining in-game and in menus, including on other servers and in single-player. Enabled by default; polls the EarthMC API every 30 seconds while enabled. Unavailable data is retried, and last-known data is marked stale after a failure or 90 seconds without an update.
 - `/routefinder roads` toggles ice road overlays.
 - `/routefinder planner` toggles the planner; open the world map to edit.
 - `/routefinder target <x> <z>` selects a route destination; open the world map to view results.
@@ -30,6 +32,8 @@ Open Xaero's World Map on EarthMC. The left-side button column provides **Ice ro
 Route Finder settings → **Accessibility saves** lists named town/nation spawn accessibility snapshots. Save current reports under a new name (or confirm a warning to overwrite an existing save), load a snapshot immediately, or open the save folder. Loading replaces only physical spawn reports; it does not change teleport permissions or other settings. Saves are portable JSON files in `EarthMC Accessibility Saves/` directly inside the game directory. Refresh the list after adding files externally. The same screen can open the planner folder.
 
 Viewer and planner panels automatically scale to the available window size. Viewer results scroll in complete rows above the action footer.
+
+Available town and nation spawns automatically load in the background when you connect to EarthMC, before opening Route Finder. Player access changes continue to be checked while the viewer is closed.
 
 Closing Route Finder retains the target location, results, selected route, and scroll position for reopening during the same game session. Double-clicking a new map target starts a new search.
 

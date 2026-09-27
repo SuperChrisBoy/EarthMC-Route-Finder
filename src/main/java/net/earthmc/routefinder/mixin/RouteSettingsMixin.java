@@ -29,6 +29,8 @@ public abstract class RouteSettingsMixin {
         String label=Component.translatable("earthmcroutefinder.controls.settings").getString();
         section(label);
         var cfg=RouteFinderMod.getConfig();
+        inputRow(Component.translatable("earthmcroutefinder.vote_party.title").getString(),onOff(cfg.votePartyHudEnabled,v->{cfg.votePartyHudEnabled=v;cfg.save();}));
+        inputRow(Component.translatable("earthmcroutefinder.vote_party.size_label").getString(),new VotePartySizeSlider(ctrlX,0,120));
         Minecraft mc=Minecraft.getInstance();
         Screen parent=(Screen)(Object)this;
         EditBox primary=new EditBox(mc.font,ctrlX,0,120,20,Component.literal(routefinder$label("primary_town")));

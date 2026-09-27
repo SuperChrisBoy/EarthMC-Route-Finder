@@ -26,18 +26,33 @@ public final class RouteFinderMod implements ClientModInitializer {
     private static Object connection;
     @Override public void onInitializeClient(){
         config=RouteFinderConfig.load();api=new EarthMcApiClient();access=new TeleportAccessService(api,config);
+        var voteParty = new net.earthmc.routefinder.api.VotePartyTracker(api::fetchVoteParty);
+        VotePartyHud.register(voteParty);
+        var votePartyKey = net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper.registerKeyMapping(
+            new net.minecraft.client.KeyMapping("key.earthmcroutefinder.vote_party", com.mojang.blaze3d.platform.InputConstants.Type.KEYSYM,
+                org.lwjgl.glfw.GLFW.GLFW_KEY_V, net.minecraft.client.KeyMapping.Category.MISC));
         ClientTickEvents.END_CLIENT_TICK.register(mc->{
+            while (votePartyKey.consumeClick()) {
+                // Drain menu input without toggling while the player is typing or rebinding keys.
+                if (mc.gui.screen() == null) {
+                    config.votePartyHudEnabled = !config.votePartyHudEnabled;
+                    config.save();
+                }
+            }
             if(connection!=mc.getConnection()){
                 connection=mc.getConnection();access=new TeleportAccessService(api,config);
                 TeleportViewerOverlay.close();MapAddonBridge.reset();
             }
+            voteParty.tick(config.votePartyHudEnabled,System.currentTimeMillis());
             IceRoadPlannerOverlay.imageExportFinished();
             if(mc.level==null||!isTeleportFeatureAvailable())return;
             IceRoadNetwork.tickAutoUpdate();
-            if(TeleportViewerOverlay.open())access.tick(currentTownSnapshot(),mc.getUser().getName(),Integer.toString(System.identityHashCode(connection)));
+            // Preload available spawns on join, even before the route viewer is opened.
+            access.tick(currentTownSnapshot(),mc.getUser().getName(),Integer.toString(System.identityHashCode(connection)));
         });
         ClientCommandRegistrationCallback.EVENT.register((dispatcher,registry)->dispatcher.register(literal("routefinder")
             .executes(c->{Minecraft mc=Minecraft.getInstance();mc.execute(()->mc.gui.setScreen(new TeleportViewerSettingsScreen(mc.gui.screen())));return 1;})
+            .then(literal("voteparty").executes(c->{config.votePartyHudEnabled=!config.votePartyHudEnabled;config.save();c.getSource().sendFeedback(Component.translatable("earthmcroutefinder.vote_party.toggle",Component.translatable(config.votePartyHudEnabled?"options.on":"options.off")));return 1;}))
             .then(literal("roads").executes(c->{config.iceRoadOverlayEnabled=!config.iceRoadOverlayEnabled;config.save();c.getSource().sendFeedback(Component.literal("Ice roads: "+config.iceRoadOverlayEnabled));return 1;}))
             .then(literal("planner").executes(c->{IceRoadPlannerOverlay.toggle();c.getSource().sendFeedback(Component.literal("Ice road planner: "+(IceRoadPlannerOverlay.active()?"on (open your world map)":"off")));return 1;}))
             .then(literal("target").then(argument("x",DoubleArgumentType.doubleArg()).then(argument("z",DoubleArgumentType.doubleArg()).executes(c->{
@@ -57,7 +72,7 @@ public final class RouteFinderMod implements ClientModInitializer {
     public static void refreshTeleportData(double x,double z){access.beginQuery(currentTownSnapshot(),Minecraft.getInstance().getUser().getName(),x,z);}
     public static void forceRefreshTeleportData(double x,double z){refreshTeleportData(x,z);access.refresh(currentTownSnapshot(),Minecraft.getInstance().getUser().getName());}
     public static CompletableFuture<TeleportAccessService.Plan> teleportPlanAsync(double x,double z){
-        access.ensure(currentTownSnapshot(),Minecraft.getInstance().getUser().getName());
+        // The client tick and explicit refresh own API loading; local edits only derive a plan.
         TeleportAccessService service=access;return CompletableFuture.supplyAsync(()->service.plan(x,z));
     }
     public static void loadAccessibilitySave(net.earthmc.routefinder.storage.AccessibilitySaves.Save save){
